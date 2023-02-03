@@ -1,0 +1,49 @@
+<configuration>
+  <!-- This is a mustache template of jooq config -->
+  <!-- JDBC connection parameters -->
+  <jdbc>
+    <driver>{{database.driverClassName}}</driver>
+    <url>{{database.url}}</url>
+    <user>{{database.username}}</user>
+    <password>{{database.password}}</password>
+  </jdbc>
+
+  <!-- Generator parameters -->
+  <generator>
+    <name>{{generatorName}}</name>
+    <database>
+      <name>org.jooq.meta.postgres.PostgresDatabase</name>
+      <catalogVersionProvider>
+        select :catalog_name || '_' || max(h.version) from flyway_schema_history h
+        where (select max(installed_rank) from flyway_schema_history) =
+        h.installed_rank
+      </catalogVersionProvider>
+      <schemaVersionProvider>
+        select :schema_name || '_' || max(h.version) from flyway_schema_history h
+        where
+        (select max(installed_rank) from flyway_schema_history) = h.installed_rank
+      </schemaVersionProvider>
+      <includes>.*</includes>
+      <excludes>.*_p20[0-9][0-9]_.*|.*_p20[0-9][0-9]w.*|.*_cv_mrel|.*_ignore|.*_old|.*_temp|temp_.*|.*_template|.*_default|.*_derived
+      </excludes>
+      <inputSchema>public</inputSchema>
+      <dateAsTimestamp>false</dateAsTimestamp>
+    </database>
+    <target>
+      <packageName>{{packageName}}</packageName>
+      <directory>target/generated-sources/jooq</directory>
+    </target>
+    <generate>
+      <pojos>true</pojos>
+      <jpaAnnotations>true</jpaAnnotations>
+      <validationAnnotations>true</validationAnnotations>
+      <constructorPropertiesAnnotationOnPojos>true</constructorPropertiesAnnotationOnPojos>
+      <constructorPropertiesAnnotationOnRecords>true</constructorPropertiesAnnotationOnRecords>
+      <nullableAnnotation>true</nullableAnnotation>
+      <nullableAnnotationType>org.eclipse.jdt.annotation.Nullable</nullableAnnotationType>
+    </generate>
+    <strategy>
+      <name>{{generatorStrategy}}</name>
+    </strategy>
+  </generator>
+</configuration>

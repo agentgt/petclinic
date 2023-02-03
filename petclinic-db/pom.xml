@@ -1,0 +1,46 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>com.adamgent.petclinic</groupId>
+    <artifactId>petclinic-maven-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+  <artifactId>petclinic-db</artifactId>
+  <profiles>
+    <profile>
+      <id>jooq</id>
+      <!--
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      -->
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <phase>generate-sources</phase>
+                <goals>
+                  <goal>migrate</goal>
+                </goals>
+                <configuration>
+                  <skip>${database.flyway.skip}</skip>
+                  <user>${database.username}</user>
+                  <password>${database.password}</password>
+                  <driver>org.postgresql.Driver</driver>
+                  <url>${database.url}</url>
+                  <!-- this is unfortunate -->
+                  <locations>
+                    <location>filesystem:src/main/resources/db/migration</location>
+                  </locations>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+</project>
