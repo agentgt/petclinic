@@ -31,7 +31,7 @@
     </database>
     <target>
       <packageName>{{packageName}}</packageName>
-      <directory>target/generated-sources/jooq</directory>
+      <directory>{{targetDirectory}}</directory>
     </target>
     <generate>
       <pojos>true</pojos>

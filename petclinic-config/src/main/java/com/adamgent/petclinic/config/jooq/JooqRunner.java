@@ -22,7 +22,9 @@ public class JooqRunner {
 	public static String toXmlConfig(DataSourceConfig dataSourceConfig, Path cwd) {
 		String generatorName = CustomJavaGenerator.class.getName();
 		String packageName = "com.adamgent.petclinic.db";
-		String targetDirectory = "target/generated-sources/jooq";
+		String relativeTargetDirectory = "target/generated-sources/jooq";
+
+		String targetDirectory = cwd.resolve(relativeTargetDirectory).toString();
 
 		String generatorStrategy = CustomJooqGeneratorStrategy.class.getName();
 		JooqGeneratorConfig config = new JooqGeneratorConfig(dataSourceConfig, targetDirectory, generatorName,

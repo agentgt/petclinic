@@ -48,6 +48,7 @@
                 <argument>JOOQ</argument>
                 <argument>${project.basedir}</argument>
               </arguments>
+              <sourceRoot>target/generated-sources/jooq</sourceRoot>
             </configuration>
           </execution>
         </executions>
