@@ -1,2 +1,2 @@
-mvn -pl petclinic-config exec:exec -X -Dexec.args="$@"
+mvn -q -pl petclinic-config compile exec:java -Dexec.arguments="$@"
 

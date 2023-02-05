@@ -23,6 +23,7 @@
         <artifactId>exec-maven-plugin</artifactId>
         <executions>
           <execution>
+            <id>migrate</id>
             <phase>generate-sources</phase>
             <goals>
               <goal>java</goal>
@@ -31,6 +32,20 @@
               <mainClass>${project.groupId}.config.Main</mainClass>
               <arguments>
                 <argument>MIGRATE</argument>
+                <argument>${project.basedir}</argument>
+              </arguments>
+            </configuration>
+          </execution>
+           <execution>
+            <id>jooq</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>java</goal>
+            </goals>
+            <configuration>
+              <mainClass>${project.groupId}.config.Main</mainClass>
+              <arguments>
+                <argument>JOOQ</argument>
                 <argument>${project.basedir}</argument>
               </arguments>
             </configuration>
