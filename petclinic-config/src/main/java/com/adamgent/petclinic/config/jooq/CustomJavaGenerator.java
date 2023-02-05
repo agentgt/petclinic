@@ -15,11 +15,11 @@ import org.jooq.tools.JooqLogger;
 public class CustomJavaGenerator extends JavaGenerator {
 
 	private final ThreadLocal<@Nullable JavaWriter> currentJavaWriter = new ThreadLocal<>();
+
 	private final ConcurrentHashMap<String, String> packageMap = new ConcurrentHashMap<>();
 
 	@Override
-	protected void generateRecord(
-			TableDefinition table) {
+	protected void generateRecord(TableDefinition table) {
 		String packageName = getStrategy().getJavaPackageName(table, Mode.RECORD);
 		File recordFile = getFile(table, Mode.RECORD);
 		if (packageName != null && packageMap.putIfAbsent(packageName, packageName) == null) {
@@ -37,10 +37,7 @@ public class CustomJavaGenerator extends JavaGenerator {
 		}
 		currentJavaWriter.set(out);
 		try {
-			log.info(
-					"Generating record",
-					out.file()
-						.getName());
+			log.info("Generating record", out.file().getName());
 			generateRecord(table, out);
 		}
 		finally {

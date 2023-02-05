@@ -8,10 +8,10 @@
   <artifactId>petclinic-config</artifactId>
 
   <properties>
-    <exec.mainClass>${project.groupId}.Main</exec.mainClass>
+    <exec.mainClass>${project.groupId}.config.Main</exec.mainClass>
     <exec.classpathPrefix>${settings.localRepository}</exec.classpathPrefix>
   </properties>
-  
+
   <build>
     <plugins>
       <plugin>
@@ -37,13 +37,42 @@
     </plugins>
   </build>
 
+  <profiles>
+    <profile>
+      <id>config-run</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.codehaus.mojo</groupId>
+            <artifactId>exec-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>default-exec</id>
+                <phase>compile</phase>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <configuration>
+                  <executable>java</executable>
+                  <arguments>
+                    <argument>${exec.mainClass}</argument>
+                  </arguments>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+
   <dependencies>
     <dependency>
       <groupId>org.eclipse.jdt</groupId>
       <artifactId>org.eclipse.jdt.annotation</artifactId>
       <optional>true</optional>
     </dependency>
-    
+
     <!-- logging -->
     <dependency>
       <groupId>org.slf4j</groupId>
@@ -66,7 +95,7 @@
       <artifactId>slf4j-jdk-platform-logging</artifactId>
     </dependency>
     <!-- end logging -->
-    
+
     <dependency>
       <groupId>io.jooby</groupId>
       <artifactId>jooby-apt</artifactId>

@@ -10,6 +10,8 @@ module com.adamgent.petclinic.config {
 	requires transitive org.slf4j;
 
 	
+	requires static java.management;
+	
 	requires static org.eclipse.jdt.annotation;
 	requires static org.jooq.codegen;
 	requires static io.jstach.jstache;

@@ -11,13 +11,11 @@ public class FlywayRunner {
 
 	private final FlywayConfig config;
 
-	public FlywayRunner(
-			FlywayConfig config) {
+	public FlywayRunner(FlywayConfig config) {
 		this.config = config;
 	}
 
-	public DataSource migrate(
-			DataSource ds) {
+	public DataSource run(DataSource ds) {
 		ClassicConfiguration c = new ClassicConfiguration();
 		c.setBaselineOnMigrate(true);
 		c.setDataSource(ds);
@@ -36,7 +34,5 @@ public class FlywayRunner {
 		}
 		return ds;
 	}
-
-
 
 }

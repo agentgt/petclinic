@@ -11,12 +11,10 @@ import org.jooq.meta.Definition;
 public class CustomJooqGeneratorStrategy extends DefaultGeneratorStrategy {
 
 	@Override
-	public String getJavaClassName(
-			Definition definition,
-			Mode mode) {
+	public String getJavaClassName(Definition definition, Mode mode) {
 		/*
-		 * Adds suffix of "Table" for table things. Otherwise there is annoying
-		 * conflict with the POJOs.
+		 * Adds suffix of "Table" for table things. Otherwise there is annoying conflict
+		 * with the POJOs.
 		 */
 		if (mode == Mode.DEFAULT || mode == null) {
 			return super.getJavaClassName(definition, mode) + "Table";
@@ -29,18 +27,14 @@ public class CustomJooqGeneratorStrategy extends DefaultGeneratorStrategy {
 	}
 
 	@Override
-	public String getJavaPackageName(
-			Definition definition,
-			Mode mode) {
+	public String getJavaPackageName(Definition definition, Mode mode) {
 
 		/*
 		 * This is to hide jooq things by adding an "internal" package
 		 */
 		if (mode == Mode.POJO || mode == Mode.INTERFACE) {
 			StringBuilder sb = new StringBuilder();
-			return sb.append(getTargetPackage())
-				.append(".internal.data")
-				.toString();
+			return sb.append(getTargetPackage()).append(".internal.data").toString();
 		}
 		else {
 			String packageName = super.getJavaPackageName(definition, mode);

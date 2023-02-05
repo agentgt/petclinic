@@ -8,8 +8,8 @@ import org.mapstruct.ap.spi.DefaultAccessorNamingStrategy;
 public class IgnoreFluentAccessorNamingStrategy extends DefaultAccessorNamingStrategy {
 
 	@Override
-	protected boolean isFluentSetter(
-			@Nullable ExecutableElement method) {
+	protected boolean isFluentSetter(@Nullable ExecutableElement method) {
 		return false;
 	}
+
 }

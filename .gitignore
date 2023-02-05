@@ -43,3 +43,5 @@ build
 
 #VS code
 .vscode
+
+.env
