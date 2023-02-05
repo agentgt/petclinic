@@ -74,7 +74,7 @@ public class ConfigBootstrap {
 		/*
 		 * We initialize slf4j before
 		 */
-		LoggerFactory.getLogger(ConfigBootstrap.class).info("SLF4J Loaded");
+		// LoggerFactory.getLogger(ConfigBootstrap.class).info("SLF4J Loaded");
 
 		var logger = System.getLogger(ConfigBootstrap.class.getCanonicalName());
 

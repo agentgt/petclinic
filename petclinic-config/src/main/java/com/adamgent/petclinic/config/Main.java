@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.EnumSet;
+import java.util.List;
 
 import com.adamgent.petclinic.config.flyway.FlywayConfig;
 import com.adamgent.petclinic.config.flyway.FlywayRunner;
@@ -73,6 +74,10 @@ public class Main {
 			}
 		}
 
+		Path migration = cwd.resolve("src/main/resources/db/migration");
+
+		List<String> flywayLocations = List.of("filesystem:" + migration.toString());
+
 		switch (command) {
 			case SHOW -> {
 				for (var e : properties.entrySet()) {
@@ -92,7 +97,7 @@ public class Main {
 				}
 			}
 			case VALIDATE -> {
-				FlywayConfig fc = new FlywayConfig(false, true);
+				FlywayConfig fc = new FlywayConfig(flywayLocations, false, true);
 				FlywayRunner runner = new FlywayRunner(fc);
 				try (var ds = dataSourceConfig.dataSource()) {
 					runner.run(ds.get());
@@ -100,7 +105,7 @@ public class Main {
 
 			}
 			case MIGRATE -> {
-				FlywayConfig fc = new FlywayConfig(true, true);
+				FlywayConfig fc = new FlywayConfig(flywayLocations, true, true);
 				FlywayRunner runner = new FlywayRunner(fc);
 				try (var ds = dataSourceConfig.dataSource()) {
 					runner.run(ds.get());

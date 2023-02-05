@@ -5,6 +5,7 @@ import java.lang.System.Logger.Level;
 import javax.sql.DataSource;
 
 import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.Location;
 import org.flywaydb.core.api.configuration.ClassicConfiguration;
 
 public class FlywayRunner {
@@ -19,6 +20,10 @@ public class FlywayRunner {
 		ClassicConfiguration c = new ClassicConfiguration();
 		c.setBaselineOnMigrate(true);
 		c.setDataSource(ds);
+		c.setFailOnMissingLocations(true);
+		Location[] locations = config.locations().stream().map(Location::new).toList().toArray(new Location[] {});
+		c.setLocations(locations);
+		// c.setLocations(new Location("filesystem:src/main/resources/db/migrate"));
 		System.Logger log = System.getLogger(FlywayRunner.class.getName());
 		Flyway f = new Flyway(c);
 		if (config.migrate()) {
