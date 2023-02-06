@@ -35,7 +35,7 @@
     </target>
     <generate>
       <pojos>true</pojos>
-      <jpaAnnotations>true</jpaAnnotations>
+      <jpaAnnotations>false</jpaAnnotations>
       <validationAnnotations>true</validationAnnotations>
       <constructorPropertiesAnnotationOnPojos>true</constructorPropertiesAnnotationOnPojos>
       <constructorPropertiesAnnotationOnRecords>true</constructorPropertiesAnnotationOnRecords>

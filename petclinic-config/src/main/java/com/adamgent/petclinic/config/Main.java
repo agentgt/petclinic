@@ -10,12 +10,16 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 
+import com.adamgent.petclinic.config.MainConfig.Command;
 import com.adamgent.petclinic.config.flyway.FlywayConfig;
 import com.adamgent.petclinic.config.flyway.FlywayRunner;
 import com.adamgent.petclinic.config.jooq.JooqRunner;
 
 public class Main {
+
+	private static final String APPLICATION_NAME = "petclinic";
 
 	public static void main(String[] args) {
 
@@ -38,12 +42,12 @@ public class Main {
 
 		if (args.length == 2) {
 			String s = args[1];
-			if (!s.isBlank()) {
+			if (!s.isBlank() && !s.startsWith("-")) {
 				cwd = Path.of(s);
 			}
 		}
 
-		ConfigBootstrap config = new ConfigBootstrap("petclinic");
+		ConfigBootstrap config = new ConfigBootstrap(APPLICATION_NAME);
 
 		try {
 
@@ -57,22 +61,33 @@ public class Main {
 
 	private static void run(Command command, ConfigBootstrap config, Path cwd) throws Exception {
 
-		var properties = config.load();
+		Map<String, String> properties = Map.of();
+		Exception t = null;
+		try {
+			properties = config.load();
+		}
+		catch (Exception e1) {
+			t = e1;
+		}
+
+		switch (command) {
+			case ENV -> {
+			}
+			default -> {
+				config.log(t);
+				System.getLogger(Main.class.getName()).log(System.Logger.Level.INFO, "Running: " + command);
+			}
+		}
+
+		if (t != null) {
+			throw t;
+		}
 
 		var f = propertySupplier("database.", properties);
 
 		DataSourceConfig dataSourceConfig = DataSourceConfig.of(f);
 
 		var out = System.out;
-
-		switch (command) {
-			case ENV -> {
-			}
-			default -> {
-				config.log();
-				System.out.println("Running: " + command);
-			}
-		}
 
 		Path migration = cwd.resolve("src/main/resources/db/migration");
 
@@ -116,12 +131,6 @@ public class Main {
 				JooqRunner.run(dataSourceConfig, cwd);
 			}
 		}
-	}
-
-	public enum Command {
-
-		SHOW, PROPERTIES, ENV, VALIDATE, MIGRATE, JOOQ
-
 	}
 
 }

@@ -13,6 +13,7 @@ module com.adamgent.petclinic.config {
 	requires static java.management;
 	
 	requires static org.eclipse.jdt.annotation;
+	requires static info.picocli;
 	requires static org.jooq.codegen;
 	requires static io.jstach.jstache;
 	requires static io.jstach.jstachio;

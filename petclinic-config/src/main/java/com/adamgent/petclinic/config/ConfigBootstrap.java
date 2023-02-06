@@ -2,8 +2,10 @@ package com.adamgent.petclinic.config;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.io.StringWriter;
 import java.lang.System.Logger;
+import java.lang.System.Logger.Level;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -12,13 +14,14 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.ResourceBundle;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
-import org.slf4j.LoggerFactory;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -44,59 +47,121 @@ public class ConfigBootstrap {
 
 	private @Nullable Map<String, String> properties = null;
 
-	public ConfigBootstrap(String applicationName) {
+	private final String[] commandLineArgs;
+
+	public ConfigBootstrap(String applicationName, String[] commandLineArgs) {
 		super();
 		this.applicationName = applicationName;
 		this.eventConsumer = events::add;
 		userConfigDir = new File(System.getProperty("user.home"), ".config" + File.separator + applicationName);
 		envName = applicationName.replace(".", "_").replace("-", "_").toUpperCase();
 		envNamePrefix = envName + "_";
+		this.commandLineArgs = commandLineArgs;
+	}
 
+	public ConfigBootstrap(String applicationName) {
+		this(applicationName, commandLineArgsFromSystemProperties(System.getProperties()));
 	}
 
 	public static Map<String, String> load(String applicationName) {
 
 		var bootstrap = new ConfigBootstrap(applicationName);
-		var properties = bootstrap.load();
-		bootstrap.log();
+		Map<String, String> properties = Map.of();
+		@Nullable
+		Throwable error = null;
+		try {
+			properties = bootstrap.load();
+		}
+		catch (Throwable e) {
+			error = e;
+		}
+		bootstrap.log(error);
 		return properties;
 	}
 
-	public void log() {
+	public void log(@Nullable Throwable error) {
 
 		var events = events();
 		if (events.isEmpty()) {
 			return;
 		}
 
-		var properties = getProperties();
+		if (isLoaded() && error == null) {
+			var properties = getProperties();
 
-		/*
-		 * We initialize slf4j before
-		 */
-		// LoggerFactory.getLogger(ConfigBootstrap.class).info("SLF4J Loaded");
+			var logger = System.getLogger(ConfigBootstrap.class.getCanonicalName());
 
-		var logger = System.getLogger(ConfigBootstrap.class.getCanonicalName());
+			/*
+			 * Replay log events
+			 */
+			for (var e : events) {
+				e.log(logger);
+			}
 
-		/*
-		 * Replay log events
-		 */
-		for (var e : events) {
-			e.log(logger);
+			logger.log(Logger.Level.INFO, "Configuration and Logging loaded");
+
+			StringBuilder sb = new StringBuilder();
+			sb.append("Loaded following properties:");
+			for (String k : properties.keySet()) {
+				sb.append("\n\t").append(k);
+			}
+
+			logger.log(Logger.Level.INFO, sb.toString());
+		}
+		else {
+			FailsafeLogger logger = new FailsafeLogger();
+			/*
+			 * Replay log events
+			 */
+			for (var e : events) {
+				e.log(logger);
+			}
+			String errorMessage = "Configuration was not fully loaded. ";
+			if (error != null) {
+				logger.log(Level.ERROR, errorMessage, error);
+			}
+			else {
+				logger.log(Level.ERROR, errorMessage);
+			}
+
 		}
 
-		logger.log(Logger.Level.INFO, "Configuration and Logging loaded");
+	}
 
-		StringBuilder sb = new StringBuilder();
-		sb.append("Loaded following properties:");
-		for (String k : properties.keySet()) {
-			sb.append("\n\t").append(k);
+	private static class FailsafeLogger implements System.Logger {
+
+		PrintStream out = System.err;
+
+		@Override
+		public String getName() {
+			return ConfigBootstrap.class.getName();
 		}
 
-		logger.log(Logger.Level.INFO, sb.toString());
-		// var args = ManagementFactory.getRuntimeMXBean().getInputArguments();
-		// logger.log(Logger.Level.INFO, args);
-		// logger.log(Logger.Level.INFO, System.getProperty("sun.java.command"));
+		@Override
+		public boolean isLoggable(Level level) {
+			return Level.DEBUG.getSeverity() <= level.getSeverity();
+		}
+
+		@Override
+		public void log(Level level, ResourceBundle bundle, String msg, Throwable thrown) {
+			_log(level, msg, thrown);
+		}
+
+		@Override
+		public void log(Level level, ResourceBundle bundle, String format, Object... params) {
+			_log(level, format, null);
+
+		}
+
+		protected void _log(Level level, String msg, @Nullable Throwable thrown) {
+			out.append("[").append(level.toString()).append("]");
+			out.append(" ").append(msg);
+			if (thrown != null) {
+				out.append(" exception: ").append(System.lineSeparator());
+				thrown.printStackTrace(out);
+			}
+			out.append(System.lineSeparator());
+		}
 
 	}
 
@@ -110,6 +175,10 @@ public class ConfigBootstrap {
 			env.put(prefix + propertyNameToEnvironmentVariable(e.getKey()), e.getValue());
 		}
 		return env;
+	}
+
+	public boolean isLoaded() {
+		return this.properties != null;
 	}
 
 	public Map<String, String> getProperties() {
@@ -191,6 +260,8 @@ public class ConfigBootstrap {
 		 */
 		new ConfigEvent.Init(applicationName).publish(eventConsumer);
 
+		Config commandLineConfig = parseCommandLine("-D");
+
 		Config envConfig = parseEnv(envNamePrefix);
 
 		Config defaultConfig = parseBuiltin(DEFAULT_PROFILE);
@@ -202,7 +273,8 @@ public class ConfigBootstrap {
 		 * explicit config right now otherwise the final Map<String,String> will have all
 		 * the system properties in it.
 		 */
-		List<Config> configs = List.of(userConfig, envConfig, defaultConfig);
+		List<Config> configs = List.of( //
+				commandLineConfig, envConfig, userConfig, defaultConfig);
 
 		Config resolved = ConfigFactory.empty();
 
@@ -254,8 +326,44 @@ public class ConfigBootstrap {
 			var c = parseUserFile(p);
 			resolved = resolved.withFallback(c);
 		}
-
+		// TODO do we need to reresolve here?
 		return resolved;
+	}
+
+	static String[] commandLineArgsFromSystemProperties(Properties properties) {
+		final String rawArgs = properties.getProperty("sun.java.command");
+		if (rawArgs == null) {
+			return new String[] {};
+		}
+		return rawArgs.split(" ");
+	}
+
+	static Map<String, String> propertiesFromCommandLine(Iterable<String> args, String prefix, String addPrefix) {
+		Map<String, String> props = new LinkedHashMap<>();
+		for (String arg : args) {
+			@NonNull
+			String[] kv = arg.split("=", 2);
+			if (kv.length < 2)
+				continue;
+			String key = kv[0];
+			if (key.startsWith(prefix)) {
+				String propertyKey = removeStart(key, prefix);
+				String value = kv[1];
+				props.put(addPrefix + propertyKey, value);
+			}
+		}
+		return props;
+	}
+
+	public String[] commandLineArgs() {
+		return commandLineArgs;
+	}
+
+	private Config parseCommandLine(String prefix) {
+		List<String> args = List.of(commandLineArgs());
+		var m = propertiesFromCommandLine(args, prefix, "");
+		new ConfigEvent.CommandLine(prefix, m).publish(eventConsumer);
+		return ConfigFactory.parseMap(m, "commandLine");
 	}
 
 	private Config parseEnv(String envNamePrefix) {
@@ -316,6 +424,13 @@ public class ConfigBootstrap {
 			@Override
 			public void log(Logger logger) {
 				logger.log(Logger.Level.INFO, "Profiles: " + profiles.toString());
+			}
+		}
+
+		public record CommandLine(String prefix, Map<String, String> args) implements ConfigEvent {
+			@Override
+			public void log(Logger logger) {
+				logger.log(Logger.Level.INFO, "Loaded CMD line args with prefix: " + prefix);
 			}
 		}
 
