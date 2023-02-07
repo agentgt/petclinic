@@ -47,7 +47,7 @@ public class Main {
 			}
 		}
 
-		ConfigBootstrap config = new ConfigBootstrap(APPLICATION_NAME);
+		ConfigBootstrap config = new ConfigBootstrap(APPLICATION_NAME, args);
 
 		try {
 

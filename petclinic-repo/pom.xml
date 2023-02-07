@@ -7,6 +7,12 @@
   </parent>
   <artifactId>petclinic-repo</artifactId>
   <dependencies>
-
+  
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>petclinic-db</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    
   </dependencies>
 </project>

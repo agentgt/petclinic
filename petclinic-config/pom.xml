@@ -175,10 +175,6 @@
       <optional>true</optional>
     </dependency>
     <!-- end mapstruct -->
-    <dependency>
-      <groupId>info.picocli</groupId>
-      <artifactId>picocli</artifactId>
-    </dependency>
 
   </dependencies>
 </project>
