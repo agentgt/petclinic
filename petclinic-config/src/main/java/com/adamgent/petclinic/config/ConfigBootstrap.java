@@ -7,7 +7,9 @@ import java.io.StringWriter;
 import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +17,7 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.ResourceBundle;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -23,9 +26,11 @@ import java.util.stream.Stream;
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
 
+import com.adamgent.petclinic.config.Config.KeyValue;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigParseOptions;
+import com.typesafe.config.ConfigRenderOptions;
 
 public class ConfigBootstrap {
 
@@ -45,7 +50,7 @@ public class ConfigBootstrap {
 
 	private final String envNamePrefix;
 
-	private @Nullable Map<String, String> properties = null;
+	private  com.adamgent.petclinic.config. @Nullable Config config;
 
 	private final String[] commandLineArgs;
 
@@ -63,20 +68,20 @@ public class ConfigBootstrap {
 		this(applicationName, commandLineArgsFromSystemProperties(System.getProperties()));
 	}
 
-	public static Map<String, String> load(String applicationName) {
+	public static com.adamgent.petclinic.config.Config load(String applicationName) {
 
 		var bootstrap = new ConfigBootstrap(applicationName);
-		Map<String, String> properties = Map.of();
+		com.adamgent.petclinic.config.Config c = com.adamgent.petclinic.config.Config.empty();
 		@Nullable
 		Throwable error = null;
 		try {
-			properties = bootstrap.load();
+			c = bootstrap.load();
 		}
 		catch (Throwable e) {
 			error = e;
 		}
 		bootstrap.log(error);
-		return properties;
+		return c;
 	}
 
 	public void log(@Nullable Throwable error) {
@@ -87,7 +92,7 @@ public class ConfigBootstrap {
 		}
 
 		if (isLoaded() && error == null) {
-			var properties = getProperties();
+			var config = getConfig();
 
 			var logger = System.getLogger(ConfigBootstrap.class.getCanonicalName());
 
@@ -102,8 +107,9 @@ public class ConfigBootstrap {
 
 			StringBuilder sb = new StringBuilder();
 			sb.append("Loaded following properties:");
-			for (String k : properties.keySet()) {
-				sb.append("\n\t").append(k);
+			for (var p : config) {
+				sb.append("\n\t");
+				sb.append(p.description());
 			}
 
 			logger.log(Logger.Level.INFO, sb.toString());
@@ -166,7 +172,7 @@ public class ConfigBootstrap {
 	}
 
 	public Map<String, String> toEnvironmentVariables() {
-		return toEnvironmentVariables(envNamePrefix, getProperties());
+		return toEnvironmentVariables(envNamePrefix, config.toMap());
 	}
 
 	public static Map<String, String> toEnvironmentVariables(String prefix, Map<String, String> properties) {
@@ -178,12 +184,12 @@ public class ConfigBootstrap {
 	}
 
 	public boolean isLoaded() {
-		return this.properties != null;
+		return this.config != null;
 	}
 
-	public Map<String, String> getProperties() {
-		var p = properties;
-		return Objects.requireNonNull(p, "Properties have not been loaded yet");
+	public com.adamgent.petclinic.config.Config getConfig() {
+		var p = config;
+		return Objects.requireNonNull(p, "Config has not been loaded yet");
 	}
 
 	public ConcurrentLinkedQueue<ConfigEvent> events() {
@@ -198,7 +204,11 @@ public class ConfigBootstrap {
 		return System.getenv();
 	}
 
-	public Map<String, String> load() {
+	public enum LoadFlag {
+		SYSTEM_PROPERTIES
+	}
+	
+	public com.adamgent.petclinic.config.Config load(LoadFlag ... flags) {
 
 		/*
 		 * We have this whole event system because we want to load config before we load
@@ -208,23 +218,32 @@ public class ConfigBootstrap {
 
 		var config = readConfig();
 		var systemProps = systemProperties();
+		
 
-		Map<String, String> properties = toMap(config);
-		Map<String, String> resolved = new LinkedHashMap<>();
+		List<KeyValue> kvs = toKeyValues(config);
+		var c = com.adamgent.petclinic.config.Config.of(kvs);
+		
+		
+		Set<LoadFlag> fs;
+		
+		if (flags != null && flags.length > 0) {
+			fs = EnumSet.of(flags[0], flags);
+		}
+		else {
+			fs = Set.of();
+		}
 
-		synchronized (systemProps) {
-			for (var e : properties.entrySet()) {
-				if (!systemProps.containsKey(e.getKey())) {
-					systemProps.put(e.getKey(), e.getValue());
-					resolved.put(e.getKey(), e.getValue());
-				}
-				else {
-					resolved.put(e.getKey(), systemProps.getProperty(e.getKey()));
+		if (fs.contains(LoadFlag.SYSTEM_PROPERTIES)) {
+			synchronized (systemProps) {
+				for (var kv : c) {
+					kv.set(systemProps::setProperty);
 				}
 			}
 		}
-		this.properties = resolved;
-		return resolved;
+
+		this.config = c;
+		
+		return c;
 
 	}
 
@@ -464,6 +483,34 @@ public class ConfigBootstrap {
 			m.put(key, value);
 		}
 		return m;
+	}
+	
+	static List<KeyValue> toKeyValues(Config config) {
+		List<KeyValue> kvs = new ArrayList<>();
+		for (var e : config.entrySet()) {
+			String name = e.getKey();
+			String value = config.getString(name);
+			var info = e.getValue();
+			String rawValue = info.render(ConfigRenderOptions.concise());
+			var origin = e.getValue().origin();
+			String filename = origin.resource();
+			if (filename != null) {
+				filename = "classpath:/" + filename;
+			}
+			else {
+				filename = origin.filename();
+			}
+			if (filename == null) {
+				filename = origin.description().substring(0, 30);
+			}
+			if (filename == null) {
+				filename = "";
+			}
+			int line = origin.lineNumber();
+			KeyValue keyValue = new KeyValue(name, value, rawValue, filename, line);
+			kvs.add(keyValue);
+		}
+		return kvs;
 	}
 
 	public static String environmentVariableToPropertyName(String p) {

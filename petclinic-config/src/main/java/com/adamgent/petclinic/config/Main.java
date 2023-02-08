@@ -64,7 +64,7 @@ public class Main {
 		Map<String, String> properties = Map.of();
 		Exception t = null;
 		try {
-			properties = config.load();
+			properties = config.load().toMap();
 		}
 		catch (Exception e1) {
 			t = e1;
