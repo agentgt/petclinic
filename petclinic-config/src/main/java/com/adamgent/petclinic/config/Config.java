@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -64,7 +65,15 @@ public class Config implements Iterable<Property<String>> {
 		return new Config(keyValues, prefix);
 	}
 	
+	public <R> R to(String key, Function<String, R> f) {
+		return property(key).to(f);
+	}
 	
+	public <R> Function<String,R> convert(Function<String, R> f) {
+		Function<String,String> o = k -> property(k).get();
+		return o.andThen(f);
+	}
+		
 	@Override
 	public Iterator<Property<String>> iterator() {
 		return stream().iterator();
@@ -142,7 +151,7 @@ public class Config implements Iterable<Property<String>> {
 	}
 	
 	public sealed interface Property<T> extends Key {
-		default <R> R map(Function<T,R> f) {
+		default <R> R to(Function<T,R> f) {
 			try {
 				return f.apply(get());
 			}
@@ -151,7 +160,7 @@ public class Config implements Iterable<Property<String>> {
 			}
 		}
 		
-		default int mapInt(ToIntFunction<T> f) {
+		default int toInt(ToIntFunction<T> f) {
 			try {
 				return f.applyAsInt(get());
 			}
@@ -160,7 +169,7 @@ public class Config implements Iterable<Property<String>> {
 			}
 		}
 		
-		default long mapLong(ToLongFunction<T> f) {
+		default long toLong(ToLongFunction<T> f) {
 			try {
 				return f.applyAsLong(get());
 			}
@@ -169,7 +178,7 @@ public class Config implements Iterable<Property<String>> {
 			}
 		}
 		
-		default boolean mapBoolean(Predicate<T> f) {
+		default boolean toBoolean(Predicate<T> f) {
 			try {
 				return f.test(get());
 			}
@@ -178,8 +187,8 @@ public class Config implements Iterable<Property<String>> {
 			}
 		}
 		
-		default <R> Property<R> property(Function<T,R> f) {
-			return new PropertyKey<>(this, () -> map(f));
+		default <R> Property<R> map(Function<T,R> f) {
+			return new PropertyKey<>(this, () -> to(f));
 		}
 		
 		default Optional<Property<T>> notMissing() {

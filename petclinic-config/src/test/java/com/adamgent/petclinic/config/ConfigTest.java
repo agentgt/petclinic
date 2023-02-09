@@ -3,6 +3,7 @@ package com.adamgent.petclinic.config;
 import static org.junit.Assert.assertEquals;
 
 import java.util.Map;
+import java.util.function.Function;
 
 import org.junit.Test;
 
@@ -22,7 +23,7 @@ public class ConfigTest {
 		Map<String,String> m = Map.of("foo.bar", "1");
 		var config = Config.of(m.entrySet());
 		
-		int value = config.property("foo.bar").mapInt(Integer::parseInt);
+		int value = config.property("foo.bar").toInt(Integer::parseInt);
 		
 		assertEquals(1, value);
 	}
@@ -32,7 +33,7 @@ public class ConfigTest {
 		Map<String,String> m = Map.of("foo.bar", "asdfsf");
 		var config = Config.of(m.entrySet());
 		
-		config.withPrefix("foo.").property("bar").mapInt(Integer::parseInt);
+		config.withPrefix("foo.").property("bar").toInt(Integer::parseInt);
 		
 	}
 	
