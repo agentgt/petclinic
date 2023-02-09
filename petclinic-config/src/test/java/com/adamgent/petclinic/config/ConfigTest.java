@@ -26,4 +26,25 @@ public class ConfigTest {
 		
 		assertEquals(1, value);
 	}
+	
+	@Test(expected = IllegalArgumentException.class)
+	public void testConvertFail() {
+		Map<String,String> m = Map.of("foo.bar", "asdfsf");
+		var config = Config.of(m.entrySet());
+		
+		config.withPrefix("foo.").property("bar").mapInt(Integer::parseInt);
+		
+	}
+	
+	@Test
+	public void testIterator() {
+		Map<String,String> m = Map.of("foo.bar", "asdfsf");
+		var config = Config.of(m.entrySet());
+		
+		for (var p :config.withPrefix("foo.")) {
+			System.out.println(p);
+		}
+		
+	}
+
 }

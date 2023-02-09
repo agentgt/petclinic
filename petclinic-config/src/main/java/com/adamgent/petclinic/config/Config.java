@@ -12,6 +12,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.function.ToIntFunction;
 import java.util.function.ToLongFunction;
+import java.util.stream.Stream;
 
 import org.eclipse.jdt.annotation.Nullable;
 
@@ -26,13 +27,21 @@ public class Config implements Iterable<Property<String>> {
 	Config(
 			Map<String, KeyValue> keyValues, String prefix) {
 		super();
+		if (prefix == null) {
+			throw new NullPointerException("prefix");
+		}
 		this.keyValues = keyValues;
 		this.prefix = prefix;
 		this.info = new ConfigInfo() {
 			
 			@Override
 			public String description() {
-				return prefix;
+				return "prefix=" + prefix;
+			}
+			
+			@Override
+			public String toString() {
+				return description();
 			}
 		};
 	}
@@ -51,13 +60,21 @@ public class Config implements Iterable<Property<String>> {
 		return new Config(kvs, "");
 	}
 	
+	public Config withPrefix(String prefix) {
+		return new Config(keyValues, prefix);
+	}
+	
 	
 	@Override
 	public Iterator<Property<String>> iterator() {
+		return stream().iterator();
+	}
+	
+	public Stream<Property<String>> stream() {
 		return keyValues.values()
 				.stream()
-				.filter(kv -> kv.name().startsWith(prefix))
-				.map(k -> property(minusPrefix)).iterator();
+				.map(this::toProperty)
+				.filter(p -> p != null);
 	}
 	
 	String minusPrefix(String path) {
@@ -65,6 +82,10 @@ public class Config implements Iterable<Property<String>> {
 			return path.substring(prefix.length());
 		}
 		return path;
+	}
+	
+	boolean hasPrefix(KeyValue kv) {
+		return kv.name().startsWith(prefix);
 	}
 	
 	public Map<String,String> toMap() {
@@ -93,22 +114,27 @@ public class Config implements Iterable<Property<String>> {
 		
 	}
 	
-	public Property<String> property(String name) {
+	public Property<String> property(
+			String name) {
 		String path = prefix + name;
 		KeyValue kv = get(path);
-		if (kv == null) {
-			return new MissingProperty<>(path, info.description());
+		var prop = toProperty(kv);
+		if (prop == null) {
+			return new MissingProperty<>(name, info);
+		}
+		return toProperty(kv);
+	}
+
+	private @Nullable Property<String> toProperty(
+			@Nullable KeyValue kv) {
+		if (kv == null || ! hasPrefix(kv)) {
+			return null;
 		}
 		if ("".equals(prefix)) {
 			return kv;
 		}
+		String name = minusPrefix(kv.name());
 		return new PropertyKeyValue(kv, name, info);
-	}
-	
-	private Optional<Property<String>> atPath(String path) {
-		if (! path.startsWith(path)) {
-			
-		}
 	}
 	
 	public interface ConfigInfo {
@@ -121,7 +147,7 @@ public class Config implements Iterable<Property<String>> {
 				return f.apply(get());
 			}
 			catch (IllegalArgumentException  e) {
-				throw new IllegalArgumentException("unable to convert: " + this, e);
+				throw new PropertyConvertException("unable to convert: ", this, e);
 			}
 		}
 		
@@ -130,7 +156,7 @@ public class Config implements Iterable<Property<String>> {
 				return f.applyAsInt(get());
 			}
 			catch (IllegalArgumentException  e) {
-				throw new IllegalArgumentException("unable to convert to int: " + this, e);
+				throw new PropertyConvertException("unable to convert to int: ", this, e);
 			}
 		}
 		
@@ -139,7 +165,7 @@ public class Config implements Iterable<Property<String>> {
 				return f.applyAsLong(get());
 			}
 			catch (IllegalArgumentException  e) {
-				throw new IllegalArgumentException("unable to convert to long: " + this, e);
+				throw new PropertyConvertException("unable to convert to long: ", this, e);
 			}
 		}
 		
@@ -148,12 +174,20 @@ public class Config implements Iterable<Property<String>> {
 				return f.test(get());
 			}
 			catch (IllegalArgumentException  e) {
-				throw new IllegalArgumentException("unable to convert to boolean: " + this, e);
+				throw new PropertyConvertException("unable to convert to boolean: ", this, e);
 			}
 		}
 		
 		default <R> Property<R> property(Function<T,R> f) {
 			return new PropertyKey<>(this, () -> map(f));
+		}
+		
+		default Optional<Property<T>> notMissing() {
+			if (this.orNull() == null) {
+				return Optional.empty();
+			}
+
+			return Optional.of(this);
 		}
 		
 		default T get() {
@@ -189,8 +223,23 @@ public class Config implements Iterable<Property<String>> {
 		}
 		
 	}
+	
+	public static class PropertyConvertException extends IllegalArgumentException {
+		private static final long serialVersionUID = 1L;
+		private final Key key;
+		
+		public PropertyConvertException(String message, Key key, Exception cause) {
+			super(message + key.description(), cause);
+			this.key = key;
+		}
+		
+		public Key getKey() {
+			return key;
+		}
+		
+	}
 
-	public record MissingProperty<T>(String name, String description) implements Property<T>{
+	public record MissingProperty<T>(String name, ConfigInfo info) implements Property<T>{
 		@Override
 		public @Nullable T orNull() {
 			return null;
@@ -218,7 +267,7 @@ public class Config implements Iterable<Property<String>> {
 		
 		@Override
 		public String description() {
-			return name() + "@" + info.description();
+			return name() + " @ [" + info.description() + "]" + name();
 		}
 		
 	}
@@ -284,6 +333,10 @@ public class Config implements Iterable<Property<String>> {
 		@Override
 		public String description() {
 			return description(new StringBuilder()).toString();
+		}
+		
+		public Property<String> asProperty() {
+			return this;
 		}
 
 	}
