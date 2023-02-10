@@ -10,14 +10,11 @@ import com.adamgent.petclinic.db.internal.tables.records.VetsRecord;
 public class VetRepository {
 
 	private final DSLContext jooq;
-	
-	
-	public VetRepository(
-			DSLContext jooq) {
+
+	public VetRepository(DSLContext jooq) {
 		super();
 		this.jooq = jooq;
 	}
-
 
 	public List<Vet> findAll() {
 

@@ -50,7 +50,7 @@ public class ConfigBootstrap {
 
 	private final String envNamePrefix;
 
-	private  com.adamgent.petclinic.config. @Nullable Config config;
+	private com.adamgent.petclinic.config.@Nullable Config config;
 
 	private final String[] commandLineArgs;
 
@@ -205,10 +205,12 @@ public class ConfigBootstrap {
 	}
 
 	public enum LoadFlag {
+
 		SYSTEM_PROPERTIES
+
 	}
-	
-	public com.adamgent.petclinic.config.Config load(LoadFlag ... flags) {
+
+	public com.adamgent.petclinic.config.Config load(LoadFlag... flags) {
 
 		/*
 		 * We have this whole event system because we want to load config before we load
@@ -218,14 +220,12 @@ public class ConfigBootstrap {
 
 		var config = readConfig();
 		var systemProps = systemProperties();
-		
 
 		List<KeyValue> kvs = toKeyValues(config);
 		var c = com.adamgent.petclinic.config.Config.of(kvs);
-		
-		
+
 		Set<LoadFlag> fs;
-		
+
 		if (flags != null && flags.length > 0) {
 			fs = EnumSet.of(flags[0], flags);
 		}
@@ -242,7 +242,7 @@ public class ConfigBootstrap {
 		}
 
 		this.config = c;
-		
+
 		return c;
 
 	}
@@ -484,7 +484,7 @@ public class ConfigBootstrap {
 		}
 		return m;
 	}
-	
+
 	static List<KeyValue> toKeyValues(Config config) {
 		List<KeyValue> kvs = new ArrayList<>();
 		for (var e : config.entrySet()) {

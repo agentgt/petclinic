@@ -15,8 +15,7 @@ public class ConfigTest {
 		Map<String, String> m = Map.of("foo.bar", "bar");
 		var config = Config.of(m.entrySet());
 
-		String value = config.property("foo.bar")
-			.get();
+		String value = config.property("foo.bar").get();
 		assertEquals("bar", value);
 	}
 
@@ -25,8 +24,7 @@ public class ConfigTest {
 		Map<String, String> m = Map.of("foo.bar", "1");
 		var config = Config.of(m.entrySet());
 
-		int value = config.property("foo.bar")
-			.toInt(Integer::parseInt);
+		int value = config.property("foo.bar").toInt(Integer::parseInt);
 
 		assertEquals(1, value);
 	}
@@ -36,9 +34,7 @@ public class ConfigTest {
 		Map<String, String> m = Map.of("foo.bar", "asdfsf");
 		var config = Config.of(m.entrySet());
 
-		config.withPrefix("foo.")
-			.property("bar")
-			.toInt(Integer::parseInt);
+		config.withPrefix("foo.").property("bar").toInt(Integer::parseInt);
 
 	}
 
@@ -54,28 +50,23 @@ public class ConfigTest {
 	}
 
 	@Test
-	public void testConfig()
-			throws Exception {
+	public void testConfig() throws Exception {
 		var config = ConfigBootstrap //
-		.load("petclinic");
-		
-		Integer a = config.asFunction()
-		.compose(s -> "database." + s)
-		.andThen(Integer::parseInt).apply(URI.create(""));
-		
-		Function<String, String> f = config.asFunction()
-				.compose(s -> "database." + s);
-		
-		Integer url = f.andThen(Integer::parseInt).apply("url");
-		
-		int port = ConfigBootstrap //
-			.load("petclinic")
-			.withPrefix("database.")
-			.property("port")
-			.toInt();
-		
-		
-		
+				.load("petclinic");
+
+		Integer a = config.asFunction().compose("database."::concat).andThen(Integer::parseInt).apply("url");
+
+		// int port = ConfigBootstrap //
+		// .load("petclinic").withPrefix("database.").property("port").toInt();
+
+	}
+
+	public record Blah(String hello) {
+		public String toString() {
+			Thread.dumpStack();
+			return "asdfasdf";
+		}
+
 	}
 
 }

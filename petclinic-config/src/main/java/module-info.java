@@ -16,7 +16,7 @@ module com.adamgent.petclinic.config {
 	requires static org.jooq.codegen;
 	requires static io.jstach.jstache;
 	requires static io.jstach.jstachio;
-	requires static typesafe.config;
+	requires typesafe.config;
 	requires static org.mapstruct.processor;
 	requires static org.mapstruct;
 	requires static java.compiler;

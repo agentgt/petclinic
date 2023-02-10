@@ -330,6 +330,13 @@
         <version>3.0.2</version>
       </dependency>
       <!-- end javax and jee -->
+      
+      <dependency>
+        <groupId>com.typesafe</groupId>
+        <artifactId>config</artifactId>
+        <optional>true</optional>
+        <version>1.4.2</version>
+      </dependency>
 
       <dependency>
         <groupId>info.picocli</groupId>
