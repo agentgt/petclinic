@@ -4,7 +4,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.net.URI;
 import java.util.Map;
-import java.util.UUID;
+import java.util.function.Function;
 
 import org.junit.Test;
 
@@ -56,24 +56,26 @@ public class ConfigTest {
 	@Test
 	public void testConfig()
 			throws Exception {
+		var config = ConfigBootstrap //
+		.load("petclinic");
+		
+		Integer a = config.asFunction()
+		.compose(s -> "database." + s)
+		.andThen(Integer::parseInt).apply(URI.create(""));
+		
+		Function<String, String> f = config.asFunction()
+				.compose(s -> "database." + s);
+		
+		Integer url = f.andThen(Integer::parseInt).apply("url");
+		
 		int port = ConfigBootstrap //
 			.load("petclinic")
 			.withPrefix("database.")
 			.property("port")
 			.toInt();
 		
-//		var uri = ConfigBootstrap //
-//				.load("petclinic")
-//				.withPrefix("database.")
-//				.property("port")
-//				.map(UUID::fromString)
-//				.orElse(UUID.randomUUID());
 		
-		System.out.println(uri);
 		
-//		int port = ConfigBootstrap //
-//				.load("petclinic")
-//				.convert(Integer::parseInt)
-		}
+	}
 
 }

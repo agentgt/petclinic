@@ -68,6 +68,97 @@ public class Config implements Iterable<PropertyString> {
 		Function<String,String> o = k -> property(k).get();
 		return o.andThen(f);
 	}
+	
+//	private static class ConfigFunction implements Function<String,String> {
+//		private final Config config;
+//
+//		public ConfigFunction(
+//				Config config) {
+//			super();
+//			this.config = config;
+//		}
+//		@Override
+//		public String apply(
+//				String t) {
+//			return config.property(t).get();
+//		}
+//		
+//		@Override
+//		public <V> Function<String, V> andThen(
+//				Function<? super String, ? extends V> after) {
+//			PropertyFunction<String, String> pf = config::property;
+//			return new PropertyFunction<>(config::property).andThen(after);
+//		}
+//		
+//		@Override
+//		public <V> Function<V, String> compose(
+//				Function<? super V, ? extends String> before) {
+//			return new PropertyFunction<>(config::property).compose(before);
+//		}
+//		
+//	}
+	
+
+	
+//	private record PropertyFunction<T, R> (
+//			Function<? super T, ? extends Property<? extends R>> property) implements Function<T, R> {
+//
+//		@Override
+//		public R apply(
+//				T t) {
+//			return property.apply(t)
+//				.get();
+//		}
+//
+//		@Override
+//		public <V> PropertyFunction<T, V> andThen(
+//				Function<? super R, ? extends V> after) {
+//			Function<? super T, ? extends Property<? extends V>> f = t -> property.apply(t)
+//				.map(after);
+//			return new PropertyFunction<>(f);
+//		}
+//
+//		@Override
+//		public <V> PropertyFunction<V, R> compose(
+//				Function<? super V, ? extends T> before) {
+//			Function<? super V, ? extends Property<? extends R>> f = v -> {
+//				T t = before.apply(v);
+//				return property.apply(t);
+//			};
+//			return new PropertyFunction<>(f);
+//		}
+//	}
+	
+	public Function<String,String> asFunction() {
+		PropertyFunction<String,String> pf = this::property;
+		return pf;
+	}
+	
+	public interface PropertyFunction<T, R> extends Function<T, R> {
+
+		@Override
+		default R apply(
+				T t) {
+			return property(t)
+				.get();
+		}
+		
+		public Property<? extends R> property(T t);
+
+		@Override
+		default <V> PropertyFunction<T, V> andThen(
+				Function<? super R, ? extends V> after) {
+			return t -> property(t).map(after);
+		}
+
+		@Override
+		default <V> PropertyFunction<V, R> compose(
+				Function<? super V, ? extends T> before) {
+			return t -> property(before.apply(t));
+		}
+	}
+	
+
 		
 	@Override
 	public Iterator<PropertyString> iterator() {
@@ -146,7 +237,7 @@ public class Config implements Iterable<PropertyString> {
 	}
 	
 	public sealed interface Property<T> extends Key {
-		default <R> R to(Function<T,R> f) {
+		default <R> R to(Function<? super T,R> f) {
 			try {
 				return f.apply(get());
 			}
@@ -182,7 +273,7 @@ public class Config implements Iterable<PropertyString> {
 			}
 		}
 		
-		default <R> Property<R> map(Function<T,R> f) {
+		default <R> Property<R> map(Function<? super T, ? extends R> f) {
 			return new PropertyKey<>(this, () -> to(f));
 		}
 		
