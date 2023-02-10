@@ -6,7 +6,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -17,9 +16,9 @@ import java.util.stream.Stream;
 
 import org.eclipse.jdt.annotation.Nullable;
 
-import com.adamgent.petclinic.config.Config.Property;
+import com.adamgent.petclinic.config.Config.PropertyString;
 
-public class Config implements Iterable<Property<String>> {
+public class Config implements Iterable<PropertyString> {
 
 	private final Map<String, KeyValue> keyValues;
 	private final String prefix;
@@ -37,7 +36,7 @@ public class Config implements Iterable<Property<String>> {
 			
 			@Override
 			public String description() {
-				return "prefix=" + prefix;
+				return prefix;
 			}
 			
 			@Override
@@ -65,21 +64,17 @@ public class Config implements Iterable<Property<String>> {
 		return new Config(keyValues, prefix);
 	}
 	
-	public <R> R to(String key, Function<String, R> f) {
-		return property(key).to(f);
-	}
-	
 	public <R> Function<String,R> convert(Function<String, R> f) {
 		Function<String,String> o = k -> property(k).get();
 		return o.andThen(f);
 	}
 		
 	@Override
-	public Iterator<Property<String>> iterator() {
+	public Iterator<PropertyString> iterator() {
 		return stream().iterator();
 	}
 	
-	public Stream<Property<String>> stream() {
+	public Stream<PropertyString> stream() {
 		return keyValues.values()
 				.stream()
 				.map(this::toProperty)
@@ -114,7 +109,7 @@ public class Config implements Iterable<Property<String>> {
 		String name();
 		
 		default String description() {
-			return name();
+			return "\"" + name() + "\"";
 		}
 		
 		default String path() {
@@ -123,7 +118,7 @@ public class Config implements Iterable<Property<String>> {
 		
 	}
 	
-	public Property<String> property(
+	public PropertyString property(
 			String name) {
 		String path = prefix + name;
 		KeyValue kv = get(path);
@@ -134,7 +129,7 @@ public class Config implements Iterable<Property<String>> {
 		return toProperty(kv);
 	}
 
-	private @Nullable Property<String> toProperty(
+	private @Nullable PropertyString toProperty(
 			@Nullable KeyValue kv) {
 		if (kv == null || ! hasPrefix(kv)) {
 			return null;
@@ -191,12 +186,20 @@ public class Config implements Iterable<Property<String>> {
 			return new PropertyKey<>(this, () -> to(f));
 		}
 		
-		default Optional<Property<T>> notMissing() {
-			if (this.orNull() == null) {
-				return Optional.empty();
+		default Optional<T> toOptional() {
+			return Optional.ofNullable(orNull());
+		}
+		
+		default T orElse(T fallback) {
+			var e = orNull();
+			if (e == null) {
+				return fallback;
 			}
-
-			return Optional.of(this);
+			return e;
+		}
+		
+		default boolean isMissing() {
+			return orNull() == null;
 		}
 		
 		default T get() {
@@ -215,6 +218,20 @@ public class Config implements Iterable<Property<String>> {
 		
 		default void set(Consumer<T> consumer) {
 			consumer.accept(get());
+		}
+	}
+	
+	public sealed interface PropertyString extends Property<String> {
+		default int toInt() {
+			return toInt(Integer::parseInt);
+		}
+		
+		default long toLong() {
+			return toLong(Long::parseLong);
+		}
+		
+		default boolean toBoolean() {
+			return toBoolean(Boolean::parseBoolean);
 		}
 	}
 	
@@ -248,10 +265,15 @@ public class Config implements Iterable<Property<String>> {
 		
 	}
 
-	public record MissingProperty<T>(String name, ConfigInfo info) implements Property<T>{
+	public record MissingProperty<T>(String name, ConfigInfo info) implements PropertyString{
 		@Override
-		public @Nullable T orNull() {
+		public @Nullable String orNull() {
 			return null;
+		}
+		
+		@Override
+		public String description() {
+			return PropertyString.super.description() + " @ [" + info.description() + "]" + name();
 		}
 	}
 	
@@ -267,7 +289,7 @@ public class Config implements Iterable<Property<String>> {
 		}
 	}
 	
-	public record PropertyKeyValue(KeyValue key, String name, ConfigInfo info) implements Property<String> {
+	public record PropertyKeyValue(KeyValue key, String name, ConfigInfo info) implements PropertyString {
 		
 		@Override
 		public @Nullable String orNull() {
@@ -276,7 +298,7 @@ public class Config implements Iterable<Property<String>> {
 		
 		@Override
 		public String description() {
-			return name() + " @ [" + info.description() + "]" + name();
+			return PropertyString.super.description() + " @ [" + info.description() + "]" + name();
 		}
 		
 	}
@@ -286,7 +308,7 @@ public class Config implements Iterable<Property<String>> {
 			String value, //
 			String rawValue, //
 			String sourceName, //
-			int sourceOrdinal) implements Property<String>, Entry<String, String> {
+			int sourceOrdinal) implements PropertyString, Entry<String, String> {
 		
 		static KeyValue of(Entry<String,String> e, 
 				String sourceName,
