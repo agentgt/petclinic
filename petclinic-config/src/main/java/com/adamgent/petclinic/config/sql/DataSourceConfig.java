@@ -1,4 +1,4 @@
-package com.adamgent.petclinic.config;
+package com.adamgent.petclinic.config.sql;
 
 import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
@@ -8,6 +8,7 @@ import java.util.function.Function;
 
 import javax.sql.DataSource;
 
+import com.adamgent.petclinic.config.Component;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 

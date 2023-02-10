@@ -1,7 +1,5 @@
 package com.adamgent.petclinic.config;
 
-import static com.adamgent.petclinic.config.ConfigBootstrap.propertySupplier;
-
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -12,14 +10,20 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 
-import com.adamgent.petclinic.config.MainConfig.Command;
 import com.adamgent.petclinic.config.flyway.FlywayConfig;
 import com.adamgent.petclinic.config.flyway.FlywayRunner;
 import com.adamgent.petclinic.config.jooq.JooqRunner;
+import com.adamgent.petclinic.config.sql.DataSourceConfig;
 
 public class Main {
 
 	private static final String APPLICATION_NAME = "petclinic";
+
+	public enum Command {
+
+		SHOW, PROPERTIES, ENV, VALIDATE, MIGRATE, JOOQ
+
+	}
 
 	public static void main(String[] args) {
 
@@ -59,12 +63,14 @@ public class Main {
 
 	}
 
-	private static void run(Command command, ConfigBootstrap config, Path cwd) throws Exception {
+	private static void run(Command command, ConfigBootstrap container, Path cwd) throws Exception {
 
 		Map<String, String> properties = Map.of();
+
 		Exception t = null;
+
 		try {
-			properties = config.load().toMap();
+			properties = container.load().toMap();
 		}
 		catch (Exception e1) {
 			t = e1;
@@ -74,7 +80,7 @@ public class Main {
 			case ENV -> {
 			}
 			default -> {
-				config.log(t);
+				container.log(t);
 				System.getLogger(Main.class.getName()).log(System.Logger.Level.INFO, "Running: " + command);
 			}
 		}
@@ -83,9 +89,9 @@ public class Main {
 			throw t;
 		}
 
-		var f = propertySupplier("database.", properties);
+		Config config = container.getConfig();
 
-		DataSourceConfig dataSourceConfig = DataSourceConfig.of(f);
+		DataSourceConfig dataSourceConfig = DataSourceConfig.of(config.asFunction().compose("database."::concat));
 
 		var out = System.out;
 
@@ -108,7 +114,7 @@ public class Main {
 			}
 			case ENV -> {
 				try (var w = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
-					ConfigBootstrap.writeEnv(config.toEnvironmentVariables(), w);
+					ConfigBootstrap.writeEnv(container.toEnvironmentVariables(), w);
 				}
 			}
 			case VALIDATE -> {

@@ -4,7 +4,7 @@ import java.nio.file.Path;
 
 import org.jooq.codegen.GenerationTool;
 
-import com.adamgent.petclinic.config.DataSourceConfig;
+import com.adamgent.petclinic.config.sql.DataSourceConfig;
 
 import io.jstach.jstache.JStache;
 import io.jstach.jstache.JStacheConfig;

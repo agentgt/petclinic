@@ -1,7 +1,9 @@
 package com.adamgent.petclinic.config;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -18,115 +20,59 @@ import org.eclipse.jdt.annotation.Nullable;
 
 import com.adamgent.petclinic.config.Config.PropertyString;
 
-public class Config implements Iterable<PropertyString> {
+public interface Config extends Iterable<PropertyString> {
 
-	private final Map<String, KeyValue> keyValues;
-
-	private final String prefix;
-
-	private final ConfigInfo info;
-
-	Config(Map<String, KeyValue> keyValues, String prefix) {
-		super();
-		if (prefix == null) {
-			throw new NullPointerException("prefix");
-		}
-		this.keyValues = keyValues;
-		this.prefix = prefix;
-		this.info = new ConfigInfo() {
-
-			@Override
-			public String description() {
-				return prefix;
-			}
-
-			@Override
-			public String toString() {
-				return description();
-			}
-		};
-	}
+	/*
+	 * Static factory methods
+	 */
 
 	public static Config empty() {
-		return new Config(Map.of(), "");
+		return new DefaultConfig(Map.of(), "");
 	}
 
-	public static Config of(Iterable<? extends Entry<String, String>> keyValues) {
-		final Map<String, KeyValue> kvs = new LinkedHashMap<>();
-
-		int i = 0;
+	public static Config of(Iterable<? extends PropertyString> keyValues) {
+		final Map<String, PropertyString> kvs = new LinkedHashMap<>();
 		for (var e : keyValues) {
-			kvs.put(e.getKey(), KeyValue.of(e, "", i++));
+			kvs.put(e.name(), e);
+			;
 		}
-		return new Config(kvs, "");
+		return new DefaultConfig(kvs, "");
 	}
 
-	public Config withPrefix(String prefix) {
-		return new Config(keyValues, prefix);
+	public static Config ofEntries(Iterable<? extends Entry<String, String>> entries, String sourceName) {
+		return Config.of(KeyValue.of(entries.iterator(), sourceName));
 	}
 
-	public <R> Function<String, R> convert(Function<String, R> f) {
-		Function<String, String> o = k -> property(k).get();
-		return o.andThen(f);
+	public static Config ofEntries(Iterable<? extends Entry<String, String>> entries) {
+		return Config.ofEntries(entries, "");
 	}
 
-	public Function<String, String> asFunction() {
+	/*
+	 * Required methods to implement
+	 */
+
+	public Config withPrefix(String prefix);
+
+	public Stream<PropertyString> stream();
+
+	public PropertyString property(String name);
+
+	default Function<String, String> asFunction() {
 		PropertyFunction<String, String> pf = this::property;
 		return pf;
 	}
 
-	private interface PropertyFunction<T, R> extends Function<T, R> {
-
-		@Override
-		default R apply(T t) {
-			return property(t).get();
-		}
-
-		public Property<? extends R> property(T t);
-
-		@Override
-		default <V> PropertyFunction<T, V> andThen(Function<? super R, ? extends V> after) {
-			return t -> property(t).map(after);
-		}
-
-		@Override
-		default <V> PropertyFunction<V, R> compose(Function<? super V, ? extends T> before) {
-			return t -> property(before.apply(t));
-		}
-
-	}
-
 	@Override
-	public Iterator<PropertyString> iterator() {
+	default Iterator<PropertyString> iterator() {
 		return stream().iterator();
 	}
 
-	public Stream<PropertyString> stream() {
-		return keyValues.values().stream().map(this::toProperty).filter(p -> p != null);
-	}
-
-	String minusPrefix(String path) {
-		if (path.startsWith(prefix)) {
-			return path.substring(prefix.length());
-		}
-		return path;
-	}
-
-	boolean hasPrefix(KeyValue kv) {
-		return kv.name().startsWith(prefix);
-	}
-
-	public Map<String, String> toMap() {
+	default Map<String, String> toMap() {
 		Map<String, String> r = new LinkedHashMap<>();
-		for (var e : keyValues.entrySet()) {
-			r.put(e.getKey(), e.getValue().get());
+		for (var p : this) {
+			r.put(p.name(), p.get());
 		}
 		return r;
-	}
-
-	@Nullable
-	KeyValue get(String name) {
-		return keyValues.get(name);
 	}
 
 	public interface Key {
@@ -137,42 +83,11 @@ public class Config implements Iterable<PropertyString> {
 			return "\"" + name() + "\"";
 		}
 
-		default String path() {
-			return name();
-		}
-
 	}
 
-	public PropertyString property(String name) {
-		String path = prefix + name;
-		KeyValue kv = get(path);
-		var prop = toProperty(kv);
-		if (prop == null) {
-			return new MissingProperty<>(name, info);
-		}
-		return toProperty(kv);
-	}
+	public interface Property<T> extends Key {
 
-	private @Nullable PropertyString toProperty(@Nullable KeyValue kv) {
-		if (kv == null || !hasPrefix(kv)) {
-			return null;
-		}
-		if ("".equals(prefix)) {
-			return kv;
-		}
-		String name = minusPrefix(kv.name());
-		return new PropertyKeyValue(kv, name, info);
-	}
-
-	public interface ConfigInfo {
-
-		String description();
-
-	}
-
-	public sealed interface Property<T> extends Key {
-
-		default <R> R to(Function<? super T, R> f) {
+		default <R> R to(Function<? super T, ? extends R> f) {
 			try {
 				return f.apply(get());
 			}
@@ -208,8 +123,20 @@ public class Config implements Iterable<PropertyString> {
 			}
 		}
 
+		default PropertyString toProperty(Function<? super T, String> f) {
+			return new SupplierStringProperty(this, () -> to(f));
+		}
+
 		default <R> Property<R> map(Function<? super T, ? extends R> f) {
-			return new PropertyKey<>(this, () -> to(f));
+			return new SupplierProperty<>(this, () -> to(f));
+		}
+
+		/*
+		 * TODO flatMap... not sure how to combine
+		 */
+
+		default <R> Property<R> flatMap(Function<? super T, ? extends Property<? extends R>> f) {
+			throw new UnsupportedOperationException();
 		}
 
 		default Optional<T> toOptional() {
@@ -248,7 +175,28 @@ public class Config implements Iterable<PropertyString> {
 
 	}
 
-	public sealed interface PropertyString extends Property<String> {
+	interface PropertyFunction<T, R> extends Function<T, R> {
+
+		@Override
+		default R apply(T t) {
+			return property(t).get();
+		}
+
+		public Property<? extends R> property(T t);
+
+		@Override
+		default <V> PropertyFunction<T, V> andThen(Function<? super R, ? extends V> after) {
+			return t -> property(t).map(after);
+		}
+
+		@Override
+		default <V> PropertyFunction<V, R> compose(Function<? super V, ? extends T> before) {
+			return t -> property(before.apply(t));
+		}
+
+	}
+
+	public interface PropertyString extends Property<String> {
 
 		default int toInt() {
 			return toInt(Integer::parseInt);
@@ -303,56 +251,23 @@ public class Config implements Iterable<PropertyString> {
 
 	}
 
-	public record MissingProperty<T> (String name, ConfigInfo info) implements PropertyString {
-		@Override
-		public @Nullable String orNull() {
-			return null;
-		}
-
-		@Override
-		public String description() {
-			return PropertyString.super.description() + " @ [" + info.description() + "]" + name();
-		}
-	}
-
-	public record PropertyKey<T> (Key key, Supplier<T> value) implements Property<T> {
-		@Override
-		public String name() {
-			return key.name();
-		}
-
-		@Override
-		public @Nullable T orNull() {
-			return value.get();
-		}
-	}
-
-	public record PropertyKeyValue(KeyValue key, String name, ConfigInfo info) implements PropertyString {
-
-		@Override
-		public @Nullable String orNull() {
-			return key.orNull();
-		}
-
-		@Override
-		public String description() {
-			return PropertyString.super.description() + " @ [" + info.description() + "]" + name();
-		}
-
-	}
-
 	public record KeyValue(String name, //
 			String value, //
 			String rawValue, //
 			String sourceName, //
-			int sourceOrdinal) implements PropertyString, Entry<String, String> {
+			int sourceOrdinal) implements PropertyString {
 
-		static KeyValue of(Entry<String, String> e, String sourceName, int index) {
-
-			if (e instanceof KeyValue kv) {
-				return kv;
-			}
+		public static KeyValue of(Entry<String, String> e, String sourceName, int index) {
 			return new KeyValue(e.getKey(), e.getValue(), e.getValue(), sourceName, index);
+		}
+
+		public static List<KeyValue> of(Iterator<? extends Entry<String, String>> entries, String sourceName) {
+			List<KeyValue> kvs = new ArrayList<>();
+			int i = 0;
+			while (entries.hasNext()) {
+				kvs.add(of(entries.next(), sourceName, i++));
+			}
+			return kvs;
 		}
 
 		@Override
@@ -363,21 +278,6 @@ public class Config implements Iterable<PropertyString> {
 		@Override
 		public String name() {
 			return name;
-		}
-
-		@Override
-		public String getKey() {
-			return name;
-		}
-
-		@Override
-		public String getValue() {
-			return value;
-		}
-
-		@Override
-		public String setValue(String value) {
-			throw new UnsupportedOperationException();
 		}
 
 		public String toString() {
@@ -405,4 +305,38 @@ public class Config implements Iterable<PropertyString> {
 
 	}
 
+}
+
+record SupplierProperty<T> (Config.Key key, Supplier<T> value) implements Config.Property<T> {
+	@Override
+	public String name() {
+		return key.name();
+	}
+
+	@Override
+	public @Nullable T orNull() {
+		return value.get();
+	}
+
+	@Override
+	public String description() {
+		return key.description();
+	}
+}
+
+record SupplierStringProperty(Config.Key key, Supplier<String> value) implements PropertyString {
+	@Override
+	public String name() {
+		return key.name();
+	}
+
+	@Override
+	public @Nullable String orNull() {
+		return value.get();
+	}
+
+	@Override
+	public String description() {
+		return key.description();
+	}
 }
