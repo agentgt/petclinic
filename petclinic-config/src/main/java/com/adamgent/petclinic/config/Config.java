@@ -333,24 +333,36 @@ public interface Config extends Iterable<ConfigEntry> {
 	
 	public sealed interface ConfigEntry extends PropertyString, ValueProperty<String> {
 		
+		@SuppressWarnings("exports")
+		default ConfigEntry withSupplier(Supplier<@Nullable ConfigEntry> supplier) {
+			return new ConfigEntrySupplier(supplier, this);
+		}
 	}
 
+	
 	@SuppressWarnings("exports")
 	public record ConfigEntrySupplier( //
-			Key key, //
-			Supplier<@Nullable String> supplier, //
-			String initialValue) implements ConfigEntry {
+			Supplier<@Nullable ConfigEntry> supplier, //
+			ConfigEntry initialValue) implements ConfigEntry {
 		
 		@Override
 		public String get() {
-			String v = supplier.get();
-			if (v == null) {
-				return initialValue;
-			}
-			return v;
+			return resolve().get();
+		}
+		
+		private ConfigEntry resolve() {
+			ConfigEntry v = supplier.get();
+			if (v != null) return v;
+			return initialValue;
+		}
+		
+		@Override
+		public Key key() {
+			return resolve().key();
 		}
 		
 	}
+	
 	
 	public record KeyValue( //
 			String name, //
@@ -361,6 +373,11 @@ public interface Config extends Iterable<ConfigEntry> {
 
 		public static KeyValue of(Entry<String, String> e, String sourceName, int index) {
 			return new KeyValue(e.getKey(), e.getValue(), e.getValue(), sourceName, index);
+		}
+		
+		
+		public static KeyValue of(String name, String value) {
+			return new KeyValue(name, value, value, name, -1);
 		}
 
 		public static List<KeyValue> of(Iterator<? extends Entry<String, String>> entries, String sourceName) {

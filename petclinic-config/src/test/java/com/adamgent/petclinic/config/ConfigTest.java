@@ -3,9 +3,13 @@ package com.adamgent.petclinic.config;
 import static org.junit.Assert.*;
 
 import java.net.URI;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.Test;
+
+import com.adamgent.petclinic.config.Config.KeyValue;
 
 public class ConfigTest {
 
@@ -59,6 +63,45 @@ public class ConfigTest {
 
 		// int port = ConfigBootstrap //
 		// .load("petclinic").withPrefix("database.").property("port").toInt();
+
+	}
+	
+	@Test
+	public void testUpdate()
+			throws Exception {
+		Map<String, String> m = Map.of("foo.bar", "1");
+
+		List<KeyValue> kvs = KeyValue.of(m.entrySet().iterator(), "");
+		
+		Map<String, KeyValue> mkvs = new LinkedHashMap<>();
+		
+		for (var k : kvs) {
+			mkvs.put(k.name(), k);
+		}
+		
+		DefaultConfig c = new DefaultConfig(mkvs);
+		
+		var property = c.property("foo.bar");
+		String v = property.get();
+		
+		assertEquals("1", v);
+		
+		mkvs.put("foo.bar", KeyValue.of("foo.bar", "2"));
+		
+		v = property.get();
+		
+		assertEquals("2", v);
+		
+		//mkvs.put("foo.bar", KeyValue.of("foo.bar", "2"));
+		
+		mkvs.remove("foo.bar");
+		
+		v = property.get();
+		
+		// after remove we go back to the initial value
+		
+		assertEquals("1", v);
+
 
 	}
 	

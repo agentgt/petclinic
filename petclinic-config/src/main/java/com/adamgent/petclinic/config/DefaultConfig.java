@@ -7,22 +7,26 @@ import org.eclipse.jdt.annotation.Nullable;
 
 class DefaultConfig implements Config {
 
-	private final Map<String, ConfigEntry> keyValues;
+	private final Map<String, ? extends ConfigEntry> keyValues;
 
 
-	DefaultConfig(Map<String, ConfigEntry> keyValues) {
+	DefaultConfig(Map<String, ? extends ConfigEntry> keyValues) {
 		super();
 		this.keyValues = keyValues;
 
 	}
 
+	@SuppressWarnings("unchecked")
 	public Stream<ConfigEntry> stream() {
-		
-		return keyValues.values().stream();
+		return (Stream<ConfigEntry>) keyValues.values().stream();
 	}
 	
 	private @Nullable ConfigEntry get(String name) {
-		return keyValues.get(name);
+		var ce = keyValues.get(name);
+		if (ce != null) {
+			ce = ce.withSupplier(() -> keyValues.get(name));
+		}
+		return ce;
 	}
 
 	public PropertyString property(String name) {
