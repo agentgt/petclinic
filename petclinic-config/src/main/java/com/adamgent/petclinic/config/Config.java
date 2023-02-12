@@ -6,7 +6,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Optional;
+import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -58,6 +59,9 @@ public interface Config extends Iterable<PropertyString> {
 	public PropertyString property(String name);
 
 	default Function<String, String> asFunction() {
+		/*
+		 * This is to for force the function to be our function type
+		 */
 		PropertyFunction<String, String> pf = this::property;
 		return pf;
 	}
@@ -81,6 +85,10 @@ public interface Config extends Iterable<PropertyString> {
 
 		default String description() {
 			return "\"" + name() + "\"";
+		}
+		
+		default Key combine(Key key) {
+			return this;
 		}
 
 	}
@@ -136,17 +144,31 @@ public interface Config extends Iterable<PropertyString> {
 		 */
 
 		default <R> Property<R> flatMap(Function<? super T, ? extends Property<? extends R>> f) {
-			throw new UnsupportedOperationException();
-		}
+			Property<T> lh = this; // left hand
+			return new Property<R>() {
 
-		default Optional<T> toOptional() {
-			return Optional.ofNullable(orNull());
+				@Override
+				public String name() {
+					return lh.name();
+				}
+
+				@Override
+				public @Nullable R orNull() {
+					var t = lh.orNull();
+					if (t == null) {
+						return null;
+					}
+					var r = f.apply(t);
+					return r.orNull();
+				}
+				
+			};
 		}
 
 		default T orElse(T fallback) {
 			var e = orNull();
 			if (e == null) {
-				return fallback;
+				return Objects.requireNonNull(fallback, "fallback");
 			}
 			return e;
 		}
@@ -212,7 +234,7 @@ public interface Config extends Iterable<PropertyString> {
 
 	}
 
-	public static class PropertyMissingException extends NullPointerException {
+	public static class PropertyMissingException extends NoSuchElementException {
 
 		private static final long serialVersionUID = 1L;
 
