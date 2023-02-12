@@ -1,6 +1,6 @@
 package com.adamgent.petclinic.config;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 import java.net.URI;
 import java.util.Map;
@@ -33,23 +33,23 @@ public class ConfigTest {
 		Map<String, String> m = Map.of("foo.bar", "asdfsf");
 		var config = Config.ofEntries(m.entrySet());
 
-		config.withPrefix("foo.").property("bar").toInt(Integer::parseInt);
+		config.property("foo.bar").toInt(Integer::parseInt);
 
 	}
 
+//	@Test
+//	public void testIterator() {
+//		Map<String, String> m = Map.of("foo.bar", "asdfsf");
+//		var config = Config.ofEntries(m.entrySet());
+//
+//		for (var p : config.withPrefix("foo.")) {
+//			System.out.println(p);
+//		}
+//
+//	}
+
 	@Test
-	public void testIterator() {
-		Map<String, String> m = Map.of("foo.bar", "asdfsf");
-		var config = Config.ofEntries(m.entrySet());
-
-		for (var p : config.withPrefix("foo.")) {
-			System.out.println(p);
-		}
-
-	}
-
-	@Test
-	public void testConfig() throws Exception {
+	public void testConfigFunction() throws Exception {
 		var config = ConfigBootstrap //
 				.load("petclinic");
 
@@ -60,6 +60,11 @@ public class ConfigTest {
 		// int port = ConfigBootstrap //
 		// .load("petclinic").withPrefix("database.").property("port").toInt();
 
+	}
+	
+	@Test
+	public void testName()
+			throws Exception {
 	}
 
 	public record Blah(String hello) {
