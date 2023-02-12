@@ -137,6 +137,7 @@ public interface Config extends Iterable<PropertyString> {
 
 		default <R> Property<R> map(Function<? super T, ? extends R> f) {
 			return new SupplierProperty<>(this, () -> to(f));
+			
 		}
 
 		/*
@@ -327,6 +328,24 @@ public interface Config extends Iterable<PropertyString> {
 
 	}
 
+}
+
+interface ConfigInfo {
+
+	String description();
+
+}
+record MissingProperty<T> (String name, ConfigInfo info) implements PropertyString {
+	@Override
+	public @Nullable String orNull() {
+		return null;
+	}
+
+	@Override
+	public String description() {
+		String desc = info.description();
+		return PropertyString.super.description() + (desc.isEmpty() ? "" : " @ [" + info.description() + "] ");
+	}
 }
 
 record SupplierProperty<T> (Config.Key key, Supplier<T> value) implements Config.Property<T> {

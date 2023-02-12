@@ -34,12 +34,6 @@ class DefaultConfig implements Config {
 		};
 	}
 
-	interface ConfigInfo {
-
-		String description();
-
-	}
-
 	public Stream<PropertyString> stream() {
 		return keyValues.values().stream().map(this::toProperty).filter(p -> p != null);
 	}
@@ -82,23 +76,10 @@ class DefaultConfig implements Config {
 			return kv;
 		}
 		String name = minusPrefix(kv.name());
-		return new PropertyKeyValue(kv, name, info);
+		return new PropertyRename(name, info, kv);
 	}
 
-	private record MissingProperty<T> (String name, ConfigInfo info) implements PropertyString {
-		@Override
-		public @Nullable String orNull() {
-			return null;
-		}
-
-		@Override
-		public String description() {
-			String desc = info.description();
-			return PropertyString.super.description() + (desc.isEmpty() ? "" : " @ [" + info.description() + "] ");
-		}
-	}
-
-	private record PropertyKeyValue(PropertyString key, String name, ConfigInfo info) implements PropertyString {
+	private record PropertyRename(String name, ConfigInfo info, PropertyString key) implements PropertyString {
 
 		@Override
 		public @Nullable String orNull() {
