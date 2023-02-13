@@ -22,6 +22,7 @@ import org.eclipse.jdt.annotation.Nullable;
 import com.adamgent.petclinic.config.Config.ConfigEntry;
 import com.adamgent.petclinic.config.Config.Property;
 import com.adamgent.petclinic.config.Config.PropertyString;
+import com.adamgent.petclinic.config.DefaultConfig.MissingKey;
 
 public interface Config extends Iterable<ConfigEntry> {
 
@@ -74,7 +75,7 @@ public interface Config extends Iterable<ConfigEntry> {
 	default Map<String, String> toMap() {
 		Map<String, String> r = new LinkedHashMap<>();
 		for (var p : this) {
-			r.put(p.name(), p.get());
+			p.set(r::put);
 		}
 		return r;
 	}
@@ -116,6 +117,16 @@ public interface Config extends Iterable<ConfigEntry> {
 		EventBuilder description(String description);
 		EventBuilder update(boolean update);
 		
+		default PropertyString property(
+				String name) {
+			Objects.requireNonNull(name);
+			var e = snapshot().get(name);
+			if (e == null) {
+				return PropertyString.missing(name);
+			}
+			return e;
+		}
+		
 		default EventBuilder put(String key, ConfigEntry keyValue) {
 			Objects.requireNonNull(key);
 			Objects.requireNonNull(keyValue);
@@ -141,71 +152,12 @@ public interface Config extends Iterable<ConfigEntry> {
 		}
 
 		Event build();
+
 	}
 	
 	void onEvent(Consumer<? super Event> consumer);
 	
-	EventTransaction beginEvent();
-	
 	void publish(Consumer<? super EventBuilder> eventProducer);
-	
-
-	
-	public interface EventTransaction extends AutoCloseable {
-		
-		Map<String, ConfigEntry> snapshot();
-		
-		public void commit(String description, boolean update);
-		
-		public void rollback();
-		
-		@Override
-		public void close();
-		
-		public State state();
-		
-		default void commit() {
-			commit("update", true);
-		}
-		
-		default EventTransaction put(String key, ConfigEntry keyValue) {
-			state().validate();
-			Objects.requireNonNull(key);
-			Objects.requireNonNull(keyValue);
-			snapshot().put(key, keyValue);
-			return this;
-		}
-		
-		default EventTransaction put(String key, String value) {
-			state().validate();
-			Objects.requireNonNull(key);
-			Objects.requireNonNull(value);
-			return put(key, KeyValue.of(key, value));
-		}
-		
-		default EventTransaction remove(String key) {
-			state().validate();
-			Objects.requireNonNull(key);
-			snapshot().remove(key);
-			return this;
-		}
-
-		
-		public enum State {
-			INIT,
-			COMMITTED,
-			ROLLBACKED,
-			CLOSED;
-			
-			public State validate() {
-				if (this != INIT) {
-					throw new IllegalStateException("Transaction already: " + this);
-				}
-				return this;
-			}
-		}
-			
-	}
 
 	public sealed interface Property<T> extends Key {
 
@@ -273,17 +225,9 @@ public interface Config extends Iterable<ConfigEntry> {
 			return key().description();
 		}
 
-		default void set(BiConsumer<String, T> consumer) {
-			consumer.accept(name(), get());
-		}
-
-		default void set(Consumer<T> consumer) {
-			consumer.accept(get());
-		}
-
 	}
 	
-	public non-sealed interface ValueProperty<T> extends Property<T> {
+	public sealed interface ValueProperty<T> extends Property<T> {
 		
 		default Property<T> or(
 				Supplier<? extends Property<? extends T>> supplier) {
@@ -321,52 +265,61 @@ public interface Config extends Iterable<ConfigEntry> {
 			return get();
 		}
 		
+		default void set(BiConsumer<String, T> consumer) {
+			consumer.accept(name(), get());
+		}
+
+		default void set(Consumer<T> consumer) {
+			consumer.accept(get());
+		}
+		
 	}
 	
-	public record MissingProperty<T> (Key key) implements PropertyString {
+	public sealed interface MissingProperty<T> extends Property<T> {
 		@Override
-		public @Nullable String orNull() {
+		default @Nullable T orNull() {
 			return null;
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Override
-		public <R> Property<R> map(
-				Function<? super String, ? extends R> f) {
-			//Missing can be everything kind of like null;
-			return (Property<R>) this;
-		}
-		
-		@SuppressWarnings("unchecked")
-		@Override
-		public <R> Property<R> flatMap(
-				Function<? super String, ? extends Property<? extends R>> mapper) {
-			return (Property<R>) this;
-		}
-		
-		@SuppressWarnings("unchecked")
-		@Override
-		public Property<String> or(
-				Supplier<? extends Property<? extends String>> supplier) {
-			return (Property<String>) supplier.get();
-		}
-
-		@Override
-		public String orElse(
-				String fallback) {
+		default T orElse(T fallback) {
 			return fallback;
 		}
-
+		
 		@Override
-		public boolean isMissing() {
+		default boolean isMissing() {
 			return true;
 		}
-
+		
 		@Override
-		public String get() {
+		default T get() {
 			throw new PropertyMissingException(this);
 		}
 		
+		@Override
+		default <R> MissingProperty<R> map(
+				Function<? super T, ? extends R> f) {
+			return new TypedMissingProperty<>(this);
+		}
+		
+		@Override
+		default <R> MissingProperty<R> flatMap(
+				Function<? super T, ? extends Property<? extends R>> mapper) {
+			return new TypedMissingProperty<>(this);
+		}
+		
+		@SuppressWarnings("unchecked")
+		@Override
+		default Property<T> or(
+				Supplier<? extends Property<? extends T>> supplier) {
+			return (Property<T>) supplier.get();
+		}
+	}
+	
+	public record TypedMissingProperty<T>(Key key) implements MissingProperty<T> {
+	}
+	
+	public record MissingPropertyString(Key key) implements PropertyString, MissingProperty<String> {
 	}
 
 	interface PropertyFunction<T, R> extends Function<T, R> {
@@ -402,6 +355,10 @@ public interface Config extends Iterable<ConfigEntry> {
 
 		default boolean toBoolean() {
 			return toBoolean(Boolean::parseBoolean);
+		}
+		
+		public static PropertyString missing(String name) {
+			return new MissingPropertyString(new MissingKey(name));
 		}
 
 	}
@@ -450,6 +407,10 @@ public interface Config extends Iterable<ConfigEntry> {
 		@SuppressWarnings("exports")
 		default ConfigEntry withSupplier(Supplier<@Nullable ConfigEntry> supplier) {
 			return new ConfigEntrySupplier(supplier, this);
+		}
+		
+		default Map.Entry<String,String> toEntry() {
+			return Map.entry(name(), get());
 		}
 	}
 

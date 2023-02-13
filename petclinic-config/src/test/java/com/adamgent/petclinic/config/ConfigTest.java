@@ -3,13 +3,11 @@ package com.adamgent.petclinic.config;
 import static org.junit.Assert.*;
 
 import java.net.URI;
-import java.util.LinkedHashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 import org.junit.Test;
-
-import com.adamgent.petclinic.config.Config.KeyValue;
 
 public class ConfigTest {
 
@@ -38,19 +36,16 @@ public class ConfigTest {
 		var config = Config.ofEntries(m.entrySet());
 
 		config.property("foo.bar").toInt(Integer::parseInt);
-
 	}
-
-//	@Test
-//	public void testIterator() {
-//		Map<String, String> m = Map.of("foo.bar", "asdfsf");
-//		var config = Config.ofEntries(m.entrySet());
-//
-//		for (var p : config.withPrefix("foo.")) {
-//			System.out.println(p);
-//		}
-//
-//	}
+	
+	@Test
+	public void testOr()
+			throws Exception {
+		Map<String, String> m = Map.of("foo.bar", "asdfsf");
+		var c = Config.ofEntries(m.entrySet());
+		URI stuff = c.property("junk").map(s -> URI.create(s)).orElse(URI.create("https://stuff"));
+		System.out.println(stuff);
+	}
 
 	@Test
 	public void testConfigFunction() throws Exception {
@@ -71,40 +66,41 @@ public class ConfigTest {
 			throws Exception {
 		Map<String, String> m = Map.of("foo.bar", "1");
 
-		List<KeyValue> kvs = KeyValue.of(m.entrySet().iterator(), "");
 		
-		Map<String, KeyValue> mkvs = new LinkedHashMap<>();
+		List<String> events = new ArrayList<>();
 		
-		for (var k : kvs) {
-			mkvs.put(k.name(), k);
-		}
+		Config c = DefaultConfig.of(m);
 		
-		DefaultConfig c = new DefaultConfig(mkvs);
+		c.onEvent(e -> {
+			events.add(e.description());
+		});
 		
 		var property = c.property("foo.bar");
 		String v = property.get();
 		
 		assertEquals("1", v);
 		
-		try (var e = c.beginEvent()) {
-			e.put("foo.bar", "2");
-			e.commit();
-		}
+		c.publish(b -> {
+			b.description(b.property("foo.bar").toInt() + "->2");
+			b.put("foo.bar", "2");
+		});
 		
 		v = property.get();
 		
 		assertEquals("2", v);
 		
-		
-		//mkvs.put("foo.bar", KeyValue.of("foo.bar", "2"));
-		
-		mkvs.remove("foo.bar");
+		c.publish(b -> {
+			b.description("remove");
+			b.remove("foo.bar");
+		});
 		
 		v = property.get();
 		
 		// after remove we go back to the initial value
 		
 		assertEquals("1", v);
+		
+		System.out.println(events);
 
 
 	}

@@ -8,7 +8,6 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
@@ -29,14 +28,17 @@ class DefaultConfig implements Config {
 	DefaultConfig(Map<String, ? extends ConfigEntry> keyValues) {
 		super();
 		this.keyValues = new ConcurrentHashMap<>(keyValues);
-
 	}
 	
-	@Override
-	public EventTransaction beginEvent() {
-		Map<String,ConfigEntry> state = snapshot();
-		return new DefaultEventTransaction(state);
+	static DefaultConfig of(Map<String,String> m) {
+		List<KeyValue> kvs = KeyValue.of(m.entrySet().iterator(), "");
+		Map<String, KeyValue> mkvs = new LinkedHashMap<>();
+		for (var k : kvs) {
+			mkvs.put(k.name(), k);
+		}
+		return new DefaultConfig(mkvs);
 	}
+	
 	
 	Map<String, ConfigEntry> snapshot() {
 		Map<String,ConfigEntry> state = new LinkedHashMap<>();
@@ -110,8 +112,8 @@ class DefaultConfig implements Config {
 		while (!queue.isEmpty()) {
 			List<Event> events;
 			if (queueLock.tryLock()) {
-				events = new ArrayList<>();
 				try {
+					events = new ArrayList<>();
 					Event current = null;
 					// We use the last event marked for update
 					Event updateEvent = null;
@@ -147,146 +149,9 @@ class DefaultConfig implements Config {
 			boolean update) implements Event {
 
 	}
-	private class DefaultEventTransaction implements EventTransaction {
-		
-		private final Map<String,ConfigEntry> snapshot;
-		private volatile DefaultEvent committed = null;
-		
-		private static final int INIT = 0;
-		private static final int COMMIT = 2;
-		private static final int ROLLBACK = 4;
-		private static final int COMMITTED = 8;
-		private static final int ROLLBACKED = 16;
-		private static final int CLOSED = 32;
-		private static final int ERROR = 64;
-
-		private final AtomicInteger _state = new AtomicInteger(INIT);
-		private final Lock lock = new ReentrantLock();
-
-		public DefaultEventTransaction(
-				Map<String, ConfigEntry> snapshot) {
-			super();
-			this.snapshot = snapshot;
-		}
-
-		@Override
-		public Map<String, ConfigEntry> snapshot() {
-			return this.snapshot;
-		}
-		
-		@Override
-		public State state() {
-			int s = _state.get();
-			return switch(s) {
-				case INIT -> State.INIT;
-				case ROLLBACK, ROLLBACKED -> State.ROLLBACKED;
-				case COMMIT, COMMITTED -> State.COMMITTED;
-				case CLOSED | ERROR -> State.CLOSED;
-				default -> throw new IllegalStateException("bug: " + s);
-			};
-		}
-		
-		@Override
-		public void commit(
-				String description,
-				boolean update) {
-
-			lock.lock();
-			boolean set = false;
-			try {
-				if (_state.compareAndSet(INIT, COMMIT)) {
-					var copy = Map.copyOf(snapshot);
-					committed = new DefaultEvent(copy, description, update);
-					if (!_state.compareAndSet(COMMIT, COMMITTED)) {
-						throw new IllegalStateException("bug");
-					}
-					set = true;
-				}
-				else {
-					String stateName = switch (_state.get()) {
-						case COMMIT -> "commited";
-						case ROLLBACK -> "rollbacked";
-						case CLOSED -> "closed";
-						case ERROR -> "error";
-						default -> throw new IllegalStateException("bug");
-					};
-					throw new IllegalStateException("Transaction is already: " + stateName);
-				}
-			}
-			finally {
-				if (! set) {
-					_state.set(ERROR);
-				}
-				lock.unlock();
-			}
-
-		}
-
-		@Override
-		public void rollback() {
-			lock.lock();
-			boolean set = false;
-			try {
-				if (!_state.compareAndSet(INIT, ROLLBACK)) {
-					String stateName = switch (_state.get()) {
-						case COMMITTED, COMMIT -> "committed";
-						case ROLLBACKED, ROLLBACK -> "rollbacked";
-						case CLOSED, ERROR -> "closed";
-						default -> throw new IllegalStateException("bug");
-					};
-					throw new IllegalStateException("Transaction is already: " + stateName);
-				}
-				else {
-					committed = null;
-					if (! _state.compareAndSet(ROLLBACK, ROLLBACKED)) {
-						throw new IllegalStateException("bug");
-					}
-					set = true;
-
-				}
-			}
-			finally {
-				if (! set) {
-					_state.set(ERROR);
-				}
-				lock.unlock();
-			}
-
-		}
-
-		@Override
-		public void close() {
-			DefaultEvent event = null;
-			lock.lock();
-			try {
-				int s = _state.get();
-				var c = committed;
-				switch (s) {
-					case COMMITTED -> event = c;
-					case ROLLBACKED, ERROR  -> {}
-					case INIT -> {
-						throw new IllegalStateException("Transaction was not committed or rollbacked");
-					}
-					case CLOSED -> {
-						throw new IllegalStateException("Already closed");
-					}
-				}
-				_state.set(CLOSED);
-			}
-			finally {
-				lock.unlock();
-			}
-			if (event != null) {
-				fire(event);
-			}
-			
-		}
-		
-	}
-
-	@SuppressWarnings("unchecked")
+	
 	public Stream<ConfigEntry> stream() {
-		return (Stream<ConfigEntry>) keyValues.values().stream();
+		return  keyValues.values().stream();
 	}
 	
 	private @Nullable ConfigEntry get(String name) {
@@ -300,7 +165,7 @@ class DefaultConfig implements Config {
 	public PropertyString property(String name) {
 		var ce = get(name);
 		if (ce == null) {
-			return new MissingProperty<>(new MissingKey(name));
+			return PropertyString.missing(name);
 		}
 		return ce;
 	}

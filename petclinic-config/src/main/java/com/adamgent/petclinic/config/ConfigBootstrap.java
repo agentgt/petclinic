@@ -172,12 +172,16 @@ public class ConfigBootstrap {
 	}
 
 	public Map<String, String> toEnvironmentVariables() {
-		return toEnvironmentVariables(envNamePrefix, config.toMap());
+		return toEnvironmentVariables(
+				envNamePrefix,
+				config.stream()
+					.map(e -> e.toEntry())
+					.toList());
 	}
 
-	public static Map<String, String> toEnvironmentVariables(String prefix, Map<String, String> properties) {
+	public static Map<String, String> toEnvironmentVariables(String prefix, Iterable<Map.Entry<String,String>> properties) {
 		Map<String, String> env = new LinkedHashMap<>();
-		for (var e : properties.entrySet()) {
+		for (var e : properties) {
 			env.put(prefix + propertyNameToEnvironmentVariable(e.getKey()), e.getValue());
 		}
 		return env;
