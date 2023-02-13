@@ -86,11 +86,15 @@ public class ConfigTest {
 		
 		assertEquals("1", v);
 		
-		mkvs.put("foo.bar", KeyValue.of("foo.bar", "2"));
+		try (var e = c.beginEvent()) {
+			e.put("foo.bar", "2");
+			e.commit();
+		}
 		
 		v = property.get();
 		
 		assertEquals("2", v);
+		
 		
 		//mkvs.put("foo.bar", KeyValue.of("foo.bar", "2"));
 		
@@ -121,6 +125,7 @@ public class ConfigTest {
 		
 		assertEquals(3, fooBar);
 	}
+	
 
 
 }

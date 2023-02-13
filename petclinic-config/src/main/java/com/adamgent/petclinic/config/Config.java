@@ -92,6 +92,120 @@ public interface Config extends Iterable<ConfigEntry> {
 		}
 
 	}
+	
+	public interface Event {
+		default String description() {
+			return "";
+		}
+		default boolean update() {
+			return true;
+		}
+		
+		Map<String, ConfigEntry> snapshot();
+		
+		public static Event of(Map<String, ConfigEntry> snapshot, String description, boolean update) {
+			return new UserEvent(snapshot, description, update);
+		}
+		public static Event of(Map<String, ConfigEntry> snapshot) {
+			return new UserEvent(snapshot, "", true);
+		}
+	}
+	
+	public interface EventBuilder  {
+		Map<String, ConfigEntry> snapshot();
+		EventBuilder description(String description);
+		EventBuilder update(boolean update);
+		
+		default EventBuilder put(String key, ConfigEntry keyValue) {
+			Objects.requireNonNull(key);
+			Objects.requireNonNull(keyValue);
+			snapshot().put(key, keyValue);
+			return this;
+		}
+		
+		default EventBuilder add(ConfigEntry keyValue) {
+			snapshot().put(keyValue.name(), keyValue);
+			return this;
+		}
+		
+		default EventBuilder put(String key, String value) {
+			Objects.requireNonNull(key);
+			Objects.requireNonNull(value);
+			return put(key, KeyValue.of(key, value));
+		}
+		
+		default EventBuilder remove(String key) {
+			Objects.requireNonNull(key);
+			snapshot().remove(key);
+			return this;
+		}
+
+		Event build();
+	}
+	
+	void onEvent(Consumer<? super Event> consumer);
+	
+	EventTransaction beginEvent();
+	
+	void publish(Consumer<? super EventBuilder> eventProducer);
+	
+
+	
+	public interface EventTransaction extends AutoCloseable {
+		
+		Map<String, ConfigEntry> snapshot();
+		
+		public void commit(String description, boolean update);
+		
+		public void rollback();
+		
+		@Override
+		public void close();
+		
+		public State state();
+		
+		default void commit() {
+			commit("update", true);
+		}
+		
+		default EventTransaction put(String key, ConfigEntry keyValue) {
+			state().validate();
+			Objects.requireNonNull(key);
+			Objects.requireNonNull(keyValue);
+			snapshot().put(key, keyValue);
+			return this;
+		}
+		
+		default EventTransaction put(String key, String value) {
+			state().validate();
+			Objects.requireNonNull(key);
+			Objects.requireNonNull(value);
+			return put(key, KeyValue.of(key, value));
+		}
+		
+		default EventTransaction remove(String key) {
+			state().validate();
+			Objects.requireNonNull(key);
+			snapshot().remove(key);
+			return this;
+		}
+
+		
+		public enum State {
+			INIT,
+			COMMITTED,
+			ROLLBACKED,
+			CLOSED;
+			
+			public State validate() {
+				if (this != INIT) {
+					throw new IllegalStateException("Transaction already: " + this);
+				}
+				return this;
+			}
+		}
+			
+	}
 
 	public sealed interface Property<T> extends Key {
 
@@ -430,6 +544,17 @@ public interface Config extends Iterable<ConfigEntry> {
 	}
 	
 
+}
+
+record UserEvent(		
+		Map<String, ConfigEntry> snapshot,
+		String description,
+		boolean update) implements Config.Event {
+	UserEvent {
+		Objects.requireNonNull(snapshot);
+		Objects.requireNonNull(description);
+		snapshot = Map.copyOf(snapshot);
+	}
 }
 
 record CombinedKey(Config.Key left, Config.Key right) implements Config.Key{
