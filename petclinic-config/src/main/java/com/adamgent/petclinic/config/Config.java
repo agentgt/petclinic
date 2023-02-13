@@ -102,17 +102,13 @@ public interface Config extends Iterable<ConfigEntry> {
 			return true;
 		}
 		
-		Map<String, ConfigEntry> snapshot();
-		
-		public static Event of(Map<String, ConfigEntry> snapshot, String description, boolean update) {
-			return new UserEvent(snapshot, description, update);
-		}
-		public static Event of(Map<String, ConfigEntry> snapshot) {
-			return new UserEvent(snapshot, "", true);
+		default Map<String, ConfigEntry> snapshot() {
+			return Map.of();
 		}
 	}
 	
 	public interface EventBuilder  {
+		// This snapshot is mutable
 		Map<String, ConfigEntry> snapshot();
 		EventBuilder description(String description);
 		EventBuilder update(boolean update);
