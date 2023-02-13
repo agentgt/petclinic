@@ -105,17 +105,22 @@ public class ConfigTest {
 
 	}
 	
+	enum Blah {
+		STUFF
+	}
 	@Test
-	public void testName()
+	public void testFlatMap()
 			throws Exception {
+		
+		Map<String, String> m = Map.of("foo.bar", "1", "foo.foo", "2");
+		var config = Config.ofEntries(m.entrySet());
+		int fooBar = config.property("foo.bar")
+			.map(Integer::parseInt)
+			.flatMap(p -> config.property("foo.foo").map(Integer::parseInt).map(i -> i + p))
+			.get();
+		
+		assertEquals(3, fooBar);
 	}
 
-	public record Blah(String hello) {
-		public String toString() {
-			Thread.dumpStack();
-			return "asdfasdf";
-		}
-
-	}
 
 }

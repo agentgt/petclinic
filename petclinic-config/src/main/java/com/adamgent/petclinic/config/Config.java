@@ -88,7 +88,7 @@ public interface Config extends Iterable<ConfigEntry> {
 		}
 		
 		default Key combine(Key key) {
-			return this;
+			return new CombinedKey(this, key);
 		}
 
 	}
@@ -182,14 +182,14 @@ public interface Config extends Iterable<ConfigEntry> {
 			return new SupplierProperty<>(this, () -> to(f), r);
 		}
 		
-		@SuppressWarnings("unchecked")
 		@Override
 		default <R> Property<R> flatMap(
 				Function<? super T, ? extends Property<? extends R>> mapper) {
-			T value = get();
-			// I don't think is right
-			var sp = new SupplierProperty<>(this, () -> get(), value);
-			return (Config.Property<R>) sp.map(mapper);
+			var property = mapper.apply(get());
+			R initial = property.get();
+			Supplier<R> supplier = () -> mapper.apply(get()).get();
+			Key key = key().combine(property);
+			return new SupplierProperty<>(key, supplier, initial);
 		}
 
 		default T orElse(T fallback) {
@@ -432,6 +432,16 @@ public interface Config extends Iterable<ConfigEntry> {
 
 }
 
+record CombinedKey(Config.Key left, Config.Key right) implements Config.Key{
+	@Override
+	public String name() {
+		return left.name();
+	}
+	@Override
+	public String description() {
+		return left.description() + " -> " + right.description();
+	}
+}
 
 record SupplierProperty<T> (Config.Key key, Supplier<@Nullable T> supplier, T initialValue) implements Config.ValueProperty<T> {
 
