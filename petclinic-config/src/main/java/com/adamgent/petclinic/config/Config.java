@@ -20,8 +20,7 @@ import java.util.stream.Stream;
 import org.eclipse.jdt.annotation.Nullable;
 
 import com.adamgent.petclinic.config.Config.ConfigEntry;
-import com.adamgent.petclinic.config.Config.Property;
-import com.adamgent.petclinic.config.Config.PropertyString;
+import com.adamgent.petclinic.config.Config.Key;
 import com.adamgent.petclinic.config.DefaultConfig.MissingKey;
 
 public interface Config extends Iterable<ConfigEntry> {
@@ -31,16 +30,11 @@ public interface Config extends Iterable<ConfigEntry> {
 	 */
 
 	public static Config empty() {
-		return new DefaultConfig(Map.of());
+		return new DefaultConfig(List.of());
 	}
 
 	public static Config of(Iterable<? extends ConfigEntry> keyValues) {
-		final Map<String, ConfigEntry> kvs = new LinkedHashMap<>();
-		for (var e : keyValues) {
-			kvs.put(e.name(), e);
-			;
-		}
-		return new DefaultConfig(kvs);
+		return new DefaultConfig(keyValues);
 	}
 
 	public static Config ofEntries(Iterable<? extends Entry<String, String>> entries, String sourceName) {
@@ -90,6 +84,10 @@ public interface Config extends Iterable<ConfigEntry> {
 		
 		default Key combine(Key key) {
 			return new CombinedKey(this, key);
+		}
+		
+		default int oridinal() {
+			return Integer.MAX_VALUE;
 		}
 
 	}
@@ -165,7 +163,25 @@ public interface Config extends Iterable<ConfigEntry> {
 	void publish(Consumer<? super EventBuilder> eventProducer);
 
 	public sealed interface Property<T> extends Key {
-
+		
+		@SuppressWarnings("exports")
+		public static <T> Property<T> ofSupplier(Key key, Supplier<@Nullable T> supplier) {
+			Objects.requireNonNull(key);
+			var t = supplier.get();
+			if (t == null) {
+				return missing(key);
+			}
+			return new SupplierProperty<>(key, supplier, t);
+		}
+		
+		public static <T> Property<T> of(Key key, T value) {
+			Objects.requireNonNull(key);
+			return new EagerProperty<>(key, value);
+		}
+		public static <T> MissingProperty<T> missing(Key key) {
+			return new TypedMissingProperty<>(key);
+		}
+		
 		public Key key();
 		
 		public @Nullable T orNull();
@@ -249,11 +265,15 @@ public interface Config extends Iterable<ConfigEntry> {
 		default <R> Property<R> flatMap(
 				Function<? super T, ? extends Property<? extends R>> mapper) {
 			var property = mapper.apply(get());
-			R initial = property.get();
-			Supplier<R> supplier = () -> mapper.apply(get()).get();
 			Key key = key().combine(property);
+			R initial = property.orNull();
+			if (initial == null) {
+				return Property.missing(key);
+			}
+			Supplier<R> supplier = () -> mapper.apply(get()).get();
 			return new SupplierProperty<>(key, supplier, initial);
 		}
+		
 
 		default T orElse(T fallback) {
 			return get();
@@ -276,6 +296,14 @@ public interface Config extends Iterable<ConfigEntry> {
 
 		default void set(Consumer<T> consumer) {
 			consumer.accept(get());
+		}
+		
+		@SuppressWarnings("exports")
+		public static <T> ValueProperty<T> of(
+				Config.Key key,
+				Supplier<@Nullable T> supplier,
+				T initialValue) {
+			return new SupplierProperty<>(key, supplier, initialValue);
 		}
 		
 	}
@@ -325,6 +353,12 @@ public interface Config extends Iterable<ConfigEntry> {
 	}
 	
 	public record MissingPropertyString(Key key) implements PropertyString, MissingProperty<String> {
+		
+		@Override
+		public PropertyString mapString(
+				Function<? super String, ? extends String> f) {
+			return this;
+		}
 	}
 
 	interface PropertyFunction<T, R> extends Function<T, R> {
@@ -362,10 +396,24 @@ public interface Config extends Iterable<ConfigEntry> {
 			return toBoolean(Boolean::parseBoolean);
 		}
 		
+		default PropertyString mapString(
+				Function<? super String, ? extends String> f) {
+			return PropertyString.of(this.map(f));
+		}
+		
 		public static PropertyString missing(String name) {
 			return new MissingPropertyString(new MissingKey(name));
 		}
-
+		
+		public static PropertyString of(Property<String> p) {
+			if (p instanceof PropertyString ps) return ps;
+			if (p.isMissing()) {
+				return new MissingPropertyString(p);
+			}
+			String initialValue = p.get();
+			ConfigEntrySupplier ce = new ConfigEntrySupplier(p, () -> p, initialValue);
+			return ce;
+		}
 	}
 
 	public static class PropertyMissingException extends NoSuchElementException {
@@ -408,40 +456,72 @@ public interface Config extends Iterable<ConfigEntry> {
 	}
 	
 	public sealed interface ConfigEntry extends PropertyString, ValueProperty<String> {
-		
-		@SuppressWarnings("exports")
-		default ConfigEntry withSupplier(Supplier<@Nullable ConfigEntry> supplier) {
-			return new ConfigEntrySupplier(supplier, this);
-		}
-		
+
 		default Map.Entry<String,String> toEntry() {
 			return Map.entry(name(), get());
+		}
+		
+		public static ConfigEntry wrap(
+				ValueProperty<String> initial, 
+				Supplier<? extends ConfigEntry> supplier) {
+			return new ConfigEntrySupplier(initial.key(), supplier, initial.get());
 		}
 	}
 
 	
 	@SuppressWarnings("exports")
 	public record ConfigEntrySupplier( //
-			Supplier<@Nullable ConfigEntry> supplier, //
-			ConfigEntry initialValue) implements ConfigEntry {
+			Key key,
+			Supplier<? extends @Nullable Property<String>> supplier, //
+			String initialValue) implements ConfigEntry {
+		
 		
 		@Override
 		public String get() {
-			return resolve().get();
+			return resolve();
 		}
 		
-		private ConfigEntry resolve() {
-			ConfigEntry v = supplier.get();
-			if (v != null) return v;
-			return initialValue;
+		private String resolve() {
+			Property<String> v = supplier.get();
+			if (v == null) {
+				return initialValue;
+			}
+			if (v instanceof ConfigEntrySupplier ce) {
+				return initialValue;
+			}
+			return v.orElse(initialValue);
+
 		}
 		
 		@Override
 		public Key key() {
-			return resolve().key();
+			return key;
 		}
 		
 	}
+	
+//	record SupplierStringProperty( //
+//			Config.Key key, //
+//			Supplier<@Nullable String> supplier, //
+//			String initialValue) implements ConfigEntry {
+//
+//		@Override
+//		public String get() {
+//			String t = supplier.get();
+//			if (t == null) {
+//				return initialValue;
+//			}
+//			return t;
+//		}
+//		
+//		@Override
+//		public <R> Property<R> map(
+//				Function<? super String, ? extends R> f) {
+//			R r = to(f);
+//			return new SupplierProperty<>(this, () -> to(f), r);
+//		}
+//
+//	}
 	
 	
 	public record KeyValue( //
@@ -450,7 +530,7 @@ public interface Config extends Iterable<ConfigEntry> {
 			String rawValue, //
 			String sourceName, //
 			int sourceOrdinal) implements ConfigEntry {
-
+		
 		public static KeyValue of(Entry<String, String> e, String sourceName, int index) {
 			return new KeyValue(e.getKey(), e.getValue(), e.getValue(), sourceName, index);
 		}
@@ -506,11 +586,12 @@ public interface Config extends Iterable<ConfigEntry> {
 		public Property<String> asProperty() {
 			return this;
 		}
-
 	}
 	
 
 }
+		
+
 
 record UserEvent(		
 		Map<String, ConfigEntry> snapshot,
@@ -539,29 +620,26 @@ record SupplierProperty<T> (Config.Key key, Supplier<@Nullable T> supplier, T in
 	@Override
 	public T get() {
 		T t = supplier.get();
-		if (t == null) {
+		if (t == null || t == this) {
 			return initialValue;
 		}
 		return t;
 	}
 }
 
-record SupplierStringProperty(Config.Key key, Supplier<@Nullable String> supplier, String initialValue) implements PropertyString, Config.ValueProperty<String> {
-
-	@Override
-	public String get() {
-		String t = supplier.get();
-		if (t == null) {
-			return initialValue;
-		}
-		return t;
+record EagerProperty<T> (Config.Key key, T value) implements Config.ValueProperty<T> {
+	EagerProperty {
+		key = Objects.requireNonNull(key);
+		value = Objects.requireNonNull(value);
 	}
-	
 	@Override
-	public <R> Property<R> map(
-			Function<? super String, ? extends R> f) {
-		R r = to(f);
-		return new SupplierProperty<>(this, () -> to(f), r);
+	public Key key() {
+		return key;
 	}
 
+	@Override
+	public T get() {
+		return value;
+	}
 }
+

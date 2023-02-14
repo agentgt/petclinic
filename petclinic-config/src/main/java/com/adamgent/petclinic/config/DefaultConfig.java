@@ -1,6 +1,7 @@
 package com.adamgent.petclinic.config;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,20 +27,27 @@ class DefaultConfig implements Config {
 	private final Lock queueLock = new ReentrantLock();
 	private final AtomicLong version = new AtomicLong(1);
 
-	DefaultConfig(Map<String, ? extends ConfigEntry> keyValues) {
+	DefaultConfig(Iterable<? extends ConfigEntry> entries) {
 		super();
-		this.keyValues = new ConcurrentHashMap<>(keyValues);
+		this.keyValues = fillMap(new ConcurrentHashMap<>(), entries);
 	}
 	
 	static DefaultConfig of(Map<String,String> m) {
 		List<KeyValue> kvs = KeyValue.of(m.entrySet().iterator(), "");
-		Map<String, KeyValue> mkvs = new LinkedHashMap<>();
-		for (var k : kvs) {
-			mkvs.put(k.name(), k);
-		}
-		return new DefaultConfig(mkvs);
+		return new DefaultConfig(kvs);
 	}
 	
+
+	static Map<String, ConfigEntry> fillMap(
+			Map<String, ConfigEntry> keyValues,
+			Iterable<? extends ConfigEntry> entries) {
+		int i = 0;
+		for (var e : entries) {
+			ConfigEntry ce = ConfigEntry.wrap(e, () -> keyValues.get(e.name()));
+			keyValues.put(e.name(), ce);
+		}
+		return keyValues;
+	}
 	
 	Snapshot snapshot() {
 		Map<String,ConfigEntry> state = new LinkedHashMap<>();
@@ -162,12 +170,11 @@ class DefaultConfig implements Config {
 		return  keyValues.values().stream();
 	}
 	
+	//private static final Comparator<ConfigEntry> COMPARATOR = Comparator.comparingInt(ConfigEntry::ordinal);
+
+	
 	private @Nullable ConfigEntry get(String name) {
-		var ce = keyValues.get(name);
-		if (ce != null) {
-			ce = ce.withSupplier(() -> keyValues.get(name));
-		}
-		return ce;
+		return keyValues.get(name);
 	}
 
 	public PropertyString property(String name) {

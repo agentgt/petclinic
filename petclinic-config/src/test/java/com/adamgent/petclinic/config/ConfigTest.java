@@ -4,10 +4,15 @@ import static org.junit.Assert.*;
 
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.junit.Test;
+
+import com.adamgent.petclinic.config.Config.ConfigEntry;
+import com.adamgent.petclinic.config.Config.ConfigEntrySupplier;
+import com.adamgent.petclinic.config.Config.KeyValue;
 
 public class ConfigTest {
 
@@ -117,6 +122,30 @@ public class ConfigTest {
 
 	}
 	
+	@Test
+	public void testPrefix()
+			throws Exception {
+		Map<String, String> m = Map.of("foo.bar", "1", "foo.foo", "2");
+		var config = Config.ofEntries(m.entrySet());
+		var pc = PrefixConfig.of("foo.", config);
+		assertEquals(1, pc.property("bar").toInt());
+	}
+	
+	
+//	@Test
+//	public void testConfigEntrySupplier()
+//			throws Exception {
+//		KeyValue a = KeyValue.of("a", "A");
+//		KeyValue b = KeyValue.of("b", "B");
+//
+//		Map<String, ConfigEntry> m = new LinkedHashMap<>();
+//		ConfigEntrySupplier ac = new ConfigEntrySupplier(() -> m.get("b"), a);
+//		ConfigEntrySupplier bc = new ConfigEntrySupplier(() -> m.get("a"), b);
+//		m.put("b", bc);
+//		m.put("a", ac);
+//		ac.get();
+//	}
+//	
 	enum Blah {
 		STUFF
 	}
