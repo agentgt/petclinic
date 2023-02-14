@@ -55,6 +55,10 @@ public class ConfigTest {
 		URI uri = config.asFunction() //
 				.compose("database."::concat) //
 				.andThen(URI::create).apply("url");
+		
+		String scheme = uri.getScheme();
+		
+		assertEquals("jdbc", scheme);
 
 		// int port = ConfigBootstrap //
 		// .load("petclinic").withPrefix("database.").property("port").toInt();
@@ -68,12 +72,18 @@ public class ConfigTest {
 
 		
 		List<String> events = new ArrayList<>();
+		List<Long> versions = new ArrayList<>();
 		
 		Config c = DefaultConfig.of(m);
 		
 		c.onEvent(e -> {
 			events.add(e.description());
 		});
+		
+		c.onEvent(e -> {
+			versions.add(e.version());
+		});
+		
 		
 		var property = c.property("foo.bar");
 		String v = property.get();
@@ -99,6 +109,8 @@ public class ConfigTest {
 		// after remove we go back to the initial value
 		
 		assertEquals("1", v);
+		
+		assertEquals(List.of(1L, 2L), versions);
 		
 		System.out.println(events);
 

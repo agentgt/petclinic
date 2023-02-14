@@ -105,6 +105,10 @@ public interface Config extends Iterable<ConfigEntry> {
 		default Map<String, ConfigEntry> snapshot() {
 			return Map.of();
 		}
+		
+		default long version() {
+			return 0;
+		}
 	}
 	
 	public interface EventBuilder  {
@@ -144,6 +148,11 @@ public interface Config extends Iterable<ConfigEntry> {
 		default EventBuilder remove(String key) {
 			Objects.requireNonNull(key);
 			snapshot().remove(key);
+			return this;
+		}
+		
+		default EventBuilder clear() {
+			snapshot().clear();
 			return this;
 		}
 

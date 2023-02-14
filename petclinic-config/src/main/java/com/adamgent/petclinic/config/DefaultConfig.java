@@ -8,6 +8,7 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
@@ -22,8 +23,8 @@ class DefaultConfig implements Config {
 	// But having explicit control is nice
 	private final ConcurrentLinkedQueue<Event> queue = new ConcurrentLinkedQueue<>();
 	private final CopyOnWriteArrayList<Consumer<? super Event>> listeners = new CopyOnWriteArrayList<>();
-	
 	private final Lock queueLock = new ReentrantLock();
+	private final AtomicLong version = new AtomicLong(1);
 
 	DefaultConfig(Map<String, ? extends ConfigEntry> keyValues) {
 		super();
@@ -40,19 +41,21 @@ class DefaultConfig implements Config {
 	}
 	
 	
-	Map<String, ConfigEntry> snapshot() {
+	Snapshot snapshot() {
 		Map<String,ConfigEntry> state = new LinkedHashMap<>();
 		// We wait for keyValues to be updated if that is in process
 		// So that we get a clean snapshot
 		queueLock.lock();
 		try {
 			state.putAll(keyValues);
-			return state;
+			return new Snapshot(state, version.get());
 		}
 		finally {
 			queueLock.unlock();
 		}
 	}
+	
+	record Snapshot(Map<String,ConfigEntry> snapshot , long version) {}
 	
 	@Override
 	public void onEvent(
@@ -64,7 +67,7 @@ class DefaultConfig implements Config {
 	public void publish(
 			Consumer<? super EventBuilder> eventProducer) {
 		var snapshot = snapshot();
-		var builder = new DefaultEventBuilder(snapshot);
+		var builder = new DefaultEventBuilder(snapshot.snapshot(), snapshot.version());
 		eventProducer.accept(builder);
 		fire(builder.build());
 	}
@@ -73,11 +76,13 @@ class DefaultConfig implements Config {
 		private final Map<String,ConfigEntry> snapshot;
 		private String description = "";
 		private boolean update = true;
+		private final long version;
 		
 		public DefaultEventBuilder(
-				Map<String, ConfigEntry> snapshot) {
+				Map<String, ConfigEntry> snapshot, long version) {
 			super();
 			this.snapshot = snapshot;
+			this.version = version;
 		}
 
 		@Override
@@ -101,7 +106,7 @@ class DefaultConfig implements Config {
 
 		@Override
 		public Event build() {
-			return new DefaultEvent(snapshot, description, update);
+			return new DefaultEvent(snapshot, description, update, version);
 		}
 		
 	}
@@ -126,6 +131,7 @@ class DefaultConfig implements Config {
 					if (updateEvent != null) {
 						keyValues.clear();
 						keyValues.putAll(updateEvent.snapshot());
+						version.incrementAndGet();
 					}
 				}
 				finally {
@@ -146,7 +152,9 @@ class DefaultConfig implements Config {
 	private record DefaultEvent(
 			Map<String, ConfigEntry> snapshot, 
 			String description, 
-			boolean update) implements Event {
+			boolean update,
+			long version
+			) implements Event {
 
 	}
 	
