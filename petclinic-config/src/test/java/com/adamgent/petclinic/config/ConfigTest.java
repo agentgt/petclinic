@@ -1,25 +1,19 @@
 package com.adamgent.petclinic.config;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.junit.Test;
 
-import com.adamgent.petclinic.config.Config.ConfigEntry;
-import com.adamgent.petclinic.config.Config.ConfigEntrySupplier;
-import com.adamgent.petclinic.config.Config.KeyValue;
-
 public class ConfigTest {
 
 	@Test
 	public void testProperty() {
-		Map<String, String> m = Map.of("foo.bar", "bar");
-		var config = Config.ofEntries(m.entrySet());
+		var config = Config.builder().add("foo.bar", "bar").build();
 
 		String value = config.property("foo.bar").get();
 		assertEquals("bar", value);
@@ -28,7 +22,7 @@ public class ConfigTest {
 	@Test
 	public void testConvert() {
 		Map<String, String> m = Map.of("foo.bar", "1");
-		var config = Config.ofEntries(m.entrySet());
+		var config = Config.builder().add(m).build();
 
 		int value = config.property("foo.bar").toInt(Integer::parseInt);
 
@@ -38,7 +32,7 @@ public class ConfigTest {
 	@Test(expected = IllegalArgumentException.class)
 	public void testConvertFail() {
 		Map<String, String> m = Map.of("foo.bar", "asdfsf");
-		var config = Config.ofEntries(m.entrySet());
+		var config = Config.builder().add(m).build();
 
 		config.property("foo.bar").toInt(Integer::parseInt);
 	}
@@ -46,7 +40,7 @@ public class ConfigTest {
 	@Test
 	public void testOr() throws Exception {
 		Map<String, String> m = Map.of("foo.bar", "asdfsf");
-		var c = Config.ofEntries(m.entrySet());
+		var c = Config.builder().add(m).build();
 		URI stuff = c.property("junk").map(s -> URI.create(s)).orElse(URI.create("https://stuff"));
 		System.out.println(stuff);
 	}
@@ -87,6 +81,8 @@ public class ConfigTest {
 		});
 
 		var property = c.property("foo.bar");
+		System.out.println(property);
+
 		String v = property.get();
 
 		assertEquals("1", v);
@@ -119,10 +115,14 @@ public class ConfigTest {
 
 	@Test
 	public void testPrefix() throws Exception {
-		Map<String, String> m = Map.of("foo.bar", "1", "foo.foo", "2");
-		var config = Config.ofEntries(m.entrySet());
-		var pc = PrefixConfig.of("foo.", config);
+		var config = Config.builder().add("foo.bar", "1").add("foo.foo", "2").add("foo.stuff", "stuff").build();
+
+		var pc = PrefixConfig.of(config, "foo.");
 		assertEquals(1, pc.property("bar").toInt());
+		assertEquals("foo.bar", pc.property("bar").name());
+
+		List<String> names = pc.stream().map(e -> e.getValue()).map(e -> e.name()).toList();
+		assertEquals(List.of("foo.bar", "foo.foo", "foo.stuff"), names);
 	}
 
 	// @Test
@@ -149,7 +149,7 @@ public class ConfigTest {
 	public void testFlatMap() throws Exception {
 
 		Map<String, String> m = Map.of("foo.bar", "1", "foo.foo", "2");
-		var config = Config.ofEntries(m.entrySet());
+		var config = Config.builder().add(m).build();
 		int fooBar = config.property("foo.bar").map(Integer::parseInt)
 				.flatMap(p -> config.property("foo.foo").map(Integer::parseInt).map(i -> i + p)).get();
 

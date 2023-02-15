@@ -1,7 +1,7 @@
 package com.adamgent.petclinic.config;
 
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Map.Entry;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -9,67 +9,57 @@ public class PrefixConfig implements Config {
 
 	private final String prefix;
 
-	private final Map<String, ConfigEntry> entries = new ConcurrentHashMap<>();
+	private final Config config;
 
-	private PrefixConfig(String prefix) {
+	private PrefixConfig(String prefix, Config config) {
 		super();
 		this.prefix = prefix;
+		this.config = config;
 	}
 
-	public static PrefixConfig of(String prefix, Config config) {
-		PrefixConfig pc = new PrefixConfig(prefix);
-		config.onEvent(ce -> {
-			if (ce.description().equals("prefix") || ce.update()) {
-				pc.entries.clear();
-				for (var e : ce.snapshot().entrySet()) {
-					if (e.getKey().startsWith(prefix)) {
-						pc.entries.put(e.getKey(), e.getValue());
-					}
-				}
-			}
-		});
-		config.publish(eb -> eb.description("prefix"));
-		return pc;
+	public static PrefixConfig of(Config config, String prefix) {
+		return new PrefixConfig(prefix, config);
 	}
 
 	@Override
-	public Stream<ConfigEntry> stream() {
-		// TODO Auto-generated method stub
-		return null;
+	public Stream<Entry<String, ConfigEntry>> stream() {
+		return config.stream().filter(e -> e.getKey().startsWith(prefix))
+				.map(e -> Map.entry(removeStart(e.getKey(), prefix), e.getValue()));
 	}
 
 	@Override
 	public PropertyString property(String name) {
-		var ce = entries.get(prefix + name);
-		if (ce != null) {
-			return ce;
+		String realName = prefix + name;
+		return config.property(realName);
+	}
+
+	private static String removeStart(final String str, final String remove) {
+		if (str.startsWith(remove)) {
+			return str.substring(remove.length());
 		}
-		return PropertyString.missing(name);
-		// Key key = new Key() {
-		// @Override
-		// public String name() {
-		// return name;
-		// }
-		// @Override
-		// public String description() {
-		// return "[" + prefix + "]" + name();
-		// }
-		// };
-		// var property = config.property(prefix + name);
-		// return PropertyString.of(property.flatMap(p -> Property.ofSupplier(key, () ->
-		// property.orNull())));
+		return str;
 	}
 
 	@Override
 	public void onEvent(Consumer<? super Event> consumer) {
-		// TODO Auto-generated method stub
+		throw new UnsupportedOperationException();
 
 	}
 
 	@Override
 	public void publish(Consumer<? super EventBuilder> eventProducer) {
-		// TODO Auto-generated method stub
+		throw new UnsupportedOperationException();
 
+	}
+
+	@Override
+	public void publish(Event event) {
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public EventBuilder eventBuilder() {
+		throw new UnsupportedOperationException();
 	}
 
 }

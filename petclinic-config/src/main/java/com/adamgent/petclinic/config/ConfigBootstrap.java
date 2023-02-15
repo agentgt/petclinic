@@ -109,7 +109,7 @@ public class ConfigBootstrap {
 			sb.append("Loaded following properties:");
 			for (var p : config) {
 				sb.append("\n\t");
-				sb.append(p.description());
+				sb.append(p.getValue().description());
 			}
 
 			logger.log(Logger.Level.INFO, sb.toString());
@@ -172,7 +172,7 @@ public class ConfigBootstrap {
 	}
 
 	public Map<String, String> toEnvironmentVariables() {
-		return toEnvironmentVariables(envNamePrefix, config.stream().map(e -> e.toEntry()).toList());
+		return toEnvironmentVariables(envNamePrefix, config.stream().map(e -> e.getValue().toEntry()).toList());
 	}
 
 	public static Map<String, String> toEnvironmentVariables(String prefix,
@@ -237,7 +237,7 @@ public class ConfigBootstrap {
 		if (fs.contains(LoadFlag.SYSTEM_PROPERTIES)) {
 			synchronized (systemProps) {
 				for (var kv : c) {
-					kv.set(systemProps::setProperty);
+					kv.getValue().set(systemProps::setProperty);
 				}
 			}
 		}
@@ -508,7 +508,7 @@ public class ConfigBootstrap {
 				filename = "";
 			}
 			int line = origin.lineNumber();
-			KeyValue keyValue = new KeyValue(name, value, rawValue, filename, line);
+			KeyValue keyValue = new KeyValue(name, value, rawValue, line, filename, 0);
 			kvs.add(keyValue);
 		}
 		return kvs;

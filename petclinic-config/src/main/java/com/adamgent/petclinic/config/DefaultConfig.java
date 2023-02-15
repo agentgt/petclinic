@@ -5,10 +5,12 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -31,9 +33,16 @@ class DefaultConfig implements Config {
 
 	private final AtomicLong version = new AtomicLong(1);
 
-	DefaultConfig(Iterable<? extends ConfigEntry> entries) {
+	private final Executor eventExecutor;
+
+	DefaultConfig(Iterable<? extends ConfigEntry> entries, Executor eventExecutor) {
 		super();
 		this.keyValues = fillMap(new ConcurrentHashMap<>(), entries);
+		this.eventExecutor = eventExecutor;
+	}
+
+	DefaultConfig(Iterable<? extends ConfigEntry> entries) {
+		this(entries, Runnable::run);
 	}
 
 	static DefaultConfig of(Map<String, String> m) {
@@ -43,12 +52,27 @@ class DefaultConfig implements Config {
 
 	static Map<String, ConfigEntry> fillMap(Map<String, ConfigEntry> keyValues,
 			Iterable<? extends ConfigEntry> entries) {
-		int i = 0;
 		for (var e : entries) {
-			ConfigEntry ce = ConfigEntry.wrap(e, () -> keyValues.get(e.name()));
-			keyValues.put(e.name(), ce);
+			keyValues.put(e.name(), e);
 		}
 		return keyValues;
+	}
+
+	protected @Nullable ConfigEntry get(String name) {
+		return keyValues.get(name);
+	}
+
+	PropertyString _property(String name) {
+		var ce = get(name);
+		if (ce == null) {
+			return PropertyString.missing(name);
+		}
+		return ce;
+	}
+
+	public PropertyString property(String name) {
+		PropertyString current = _property(name);
+		return PropertyString.of(current.key(), () -> _property(name));
 	}
 
 	Snapshot snapshot() {
@@ -74,11 +98,15 @@ class DefaultConfig implements Config {
 	}
 
 	@Override
-	public void publish(Consumer<? super EventBuilder> eventProducer) {
+	public void publish(Event event) {
+		fire(event);
+	}
+
+	@Override
+	public EventBuilder eventBuilder() {
 		var snapshot = snapshot();
 		var builder = new DefaultEventBuilder(snapshot.snapshot(), snapshot.version());
-		eventProducer.accept(builder);
-		fire(builder.build());
+		return builder;
 	}
 
 	private static class DefaultEventBuilder implements EventBuilder {
@@ -125,6 +153,7 @@ class DefaultConfig implements Config {
 		queue.add(event);
 		while (!queue.isEmpty()) {
 			List<Event> events;
+			// START LOCK
 			if (queueLock.tryLock()) {
 				try {
 					events = new ArrayList<>();
@@ -146,13 +175,14 @@ class DefaultConfig implements Config {
 				finally {
 					queueLock.unlock();
 				}
+				// END LOCK
 			}
 			else {
 				events = List.of();
 			}
 			for (var e : events) {
 				for (var listener : listeners) {
-					listener.accept(e);
+					eventExecutor.execute(() -> listener.accept(e));
 				}
 			}
 		}
@@ -163,26 +193,16 @@ class DefaultConfig implements Config {
 
 	}
 
-	public Stream<ConfigEntry> stream() {
-		return keyValues.values().stream();
+	private static final Comparator<Entry<String, ConfigEntry>> _COMPARATOR = (a, b) -> ConfigEntry.COMPARATOR
+			.compare(a.getValue(), b.getValue());
+
+	private static final Comparator<Entry<String, ConfigEntry>> COMPARATOR = _COMPARATOR.thenComparing(Entry::getKey);
+
+	public Stream<Entry<String, ConfigEntry>> stream() {
+		return keyValues.entrySet().stream().map(e -> Map.entry(e.getKey(), e.getValue())).sorted(COMPARATOR);
 	}
 
 	// private static final Comparator<ConfigEntry> COMPARATOR =
 	// Comparator.comparingInt(ConfigEntry::ordinal);
-
-	private @Nullable ConfigEntry get(String name) {
-		return keyValues.get(name);
-	}
-
-	public PropertyString property(String name) {
-		var ce = get(name);
-		if (ce == null) {
-			return PropertyString.missing(name);
-		}
-		return ce;
-	}
-
-	record MissingKey(String name) implements Key {
-	}
 
 }
