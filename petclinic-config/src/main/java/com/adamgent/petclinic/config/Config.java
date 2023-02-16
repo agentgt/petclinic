@@ -28,7 +28,6 @@ import com.adamgent.petclinic.config.Config.ConfigEntry;
 import com.adamgent.petclinic.config.Config.Key;
 import com.adamgent.petclinic.config.Config.Key.MissingKey;
 import com.adamgent.petclinic.config.Config.MissingProperty;
-import com.adamgent.petclinic.config.Config.Property;
 import com.adamgent.petclinic.config.Config.PropertyString;
 import com.adamgent.petclinic.config.Config.ValueProperty;
 
@@ -704,7 +703,7 @@ public interface Config extends Iterable<Entry<String, ConfigEntry>> {
 		public StringBuilder description(StringBuilder sb) {
 			sb.append(name());
 			if (!sourceName.isBlank()) {
-				sb.append(" <-- [").append(sourceName).append(":").append(sourceOrdinal).append("]");
+				sb.append(" <-- [").append(sourceName).append(":").append(index).append("]");
 			}
 			return sb;
 		}
