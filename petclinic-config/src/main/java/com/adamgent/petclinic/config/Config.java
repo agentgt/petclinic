@@ -10,7 +10,9 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.SortedMap;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -127,6 +129,25 @@ public interface Config extends Iterable<Entry<String, ConfigEntry>> {
 		 */
 		PropertyFunction<String, String> pf = this::property;
 		return pf;
+	}
+
+	default Function<String, Optional<String>> asOptional() {
+		/*
+		 * There is probably a better way to do this
+		 */
+		AtomicReference<Key> _key = new AtomicReference<>();
+		OptionalPropertyFunction<String, Optional<String>> f = new OptionalPropertyFunction<String, Optional<String>>(
+				_key) {
+
+			@Override
+			public Optional<String> apply(String t) {
+				var property = property(t);
+				_key.set(property.key());
+				return Optional.ofNullable(property(t).orNull());
+			}
+		};
+		return f;
+
 	}
 
 	@Override
@@ -273,6 +294,9 @@ public interface Config extends Iterable<Entry<String, ConfigEntry>> {
 
 		public <R> Property<R> map(Function<? super T, ? extends R> f);
 
+		@SuppressWarnings("exports")
+		public <R> Property<R> mapNullable(Function<? super T, ? extends @Nullable R> f);
+
 		public <R> Property<R> flatMap(Function<? super T, ? extends Property<? extends R>> mapper);
 
 		public T orElse(T fallback);
@@ -281,12 +305,22 @@ public interface Config extends Iterable<Entry<String, ConfigEntry>> {
 
 		public T get();
 
+		@SuppressWarnings("exports")
+		default <R> @Nullable R toNullable(Function<? super T, ? extends @Nullable R> f) {
+			try {
+				return f.apply(get());
+			}
+			catch (IllegalArgumentException | NoSuchElementException e) {
+				throw new PropertyConvertException(key(), e);
+			}
+		}
+
 		default <R> R to(Function<? super T, ? extends R> f) {
 			try {
 				return Objects.requireNonNull(f.apply(get()),
 						"conversion function returned nulled for key: " + key().name());
 			}
-			catch (IllegalArgumentException e) {
+			catch (IllegalArgumentException | NoSuchElementException e) {
 				throw new PropertyConvertException(key(), e);
 			}
 		}
@@ -332,6 +366,16 @@ public interface Config extends Iterable<Entry<String, ConfigEntry>> {
 
 		default Property<T> or(Supplier<? extends Property<? extends T>> supplier) {
 			return this;
+		}
+
+		@SuppressWarnings("exports")
+		default <R> Property<R> mapNullable(Function<? super T, ? extends @Nullable R> f) {
+			@Nullable
+			R r = toNullable(f);
+			if (r == null) {
+				return Property.missing(this.key());
+			}
+			return new SupplierProperty<>(this.key(), () -> toNullable(f), r);
 		}
 
 		default <R> Property<R> map(Function<? super T, ? extends R> f) {
@@ -416,6 +460,12 @@ public interface Config extends Iterable<Entry<String, ConfigEntry>> {
 			return new TypedMissingProperty<>(key());
 		}
 
+		@SuppressWarnings("exports")
+		@Override
+		default <R> Property<R> mapNullable(Function<? super T, ? extends @Nullable R> f) {
+			return new TypedMissingProperty<>(key());
+		}
+
 		@Override
 		default <R> MissingProperty<R> flatMap(Function<? super T, ? extends Property<? extends R>> mapper) {
 			return new TypedMissingProperty<>(key());
@@ -446,6 +496,57 @@ public interface Config extends Iterable<Entry<String, ConfigEntry>> {
 		@Override
 		default <V> PropertyFunction<V, R> compose(Function<? super V, ? extends T> before) {
 			return t -> property(before.apply(t));
+		}
+
+	}
+
+	abstract class OptionalPropertyFunction<T, R> implements Function<T, R> {
+
+		private final AtomicReference<Key> key;
+
+		public OptionalPropertyFunction(AtomicReference<Key> key) {
+			super();
+			this.key = key;
+		}
+
+		@Override
+		public <V> OptionalPropertyFunction<T, V> andThen(Function<? super R, ? extends V> after) {
+
+			var self = this;
+			return new OptionalPropertyFunction<T, V>(self.key) {
+
+				@Override
+				public V apply(T t) {
+					try {
+						R r = self.apply(t);
+						return after.apply(r);
+					}
+					catch (IllegalArgumentException | NoSuchElementException a) {
+						throw new PropertyConvertException(self.key.get(), a);
+					}
+				}
+
+			};
+
+		}
+
+		@Override
+		public <V> OptionalPropertyFunction<V, R> compose(Function<? super V, ? extends T> before) {
+			var self = this;
+			return new OptionalPropertyFunction<V, R>(self.key) {
+
+				@Override
+				public R apply(V t) {
+					try {
+						var v = before.apply(t);
+						return self.apply(v);
+					}
+					catch (IllegalArgumentException | NoSuchElementException a) {
+						throw new PropertyConvertException(self.key.get(), a);
+					}
+				}
+
+			};
 		}
 
 	}
@@ -629,12 +730,6 @@ record SupplierPropertyString( //
 			return initialValue;
 		}
 		return t;
-	}
-
-	@Override
-	public <R> Property<R> map(Function<? super String, ? extends R> f) {
-		R r = to(f);
-		return new SupplierProperty<>(this.key(), () -> to(f), r);
 	}
 
 }

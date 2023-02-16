@@ -63,6 +63,7 @@ class DefaultConfig implements Config {
 	}
 
 	PropertyString _property(String name) {
+		Objects.requireNonNull(name, "name");
 		var ce = get(name);
 		if (ce == null) {
 			return PropertyString.missing(name);

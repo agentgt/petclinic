@@ -1,6 +1,8 @@
 package com.adamgent.petclinic.config;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -8,6 +10,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.junit.Test;
+
+import com.adamgent.petclinic.config.Config.PropertyConvertException;
 
 public class ConfigTest {
 
@@ -50,7 +54,44 @@ public class ConfigTest {
 		var config = ConfigBootstrap //
 				.load("petclinic");
 
-		URI uri = config.asFunction() //
+		URI uri = null;
+
+		// URI _uri = config.asOptional() //
+		// .compose("database."::concat) //
+		// .andThen( o -> o.map(URI::create))
+		// .apply("url")
+		// .orElse(null);
+		//
+		// assertNotNull(_uri);
+
+		uri = config.asOptional() //
+				// compose("database."::concat) //
+				.andThen(o -> o.map(URI::create)).apply("database.url").orElse(null);
+
+		assertNotNull(uri);
+
+		uri = config.asOptional() //
+				.compose("database."::concat) //
+				.andThen(o -> o.map(URI::create)).apply("url").orElse(null);
+
+		assertNotNull(uri);
+
+		try {
+			config.asOptional() //
+					.compose("database."::concat) //
+					.andThen(o -> o.map(Integer::parseInt)).apply("url").orElse(null);
+			fail("should have thrown convert exception");
+		}
+		catch (PropertyConvertException e) {
+		}
+
+		// uri = config.asNullable() //
+		// .compose("database."::concat) //
+		// .andThen(URI::create).apply("asdasf");
+
+		// assertNull(uri);
+
+		uri = config.asFunction() //
 				.compose("database."::concat) //
 				.andThen(URI::create).apply("url");
 
