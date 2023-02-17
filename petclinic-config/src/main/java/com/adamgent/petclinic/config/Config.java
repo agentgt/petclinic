@@ -142,7 +142,7 @@ public interface Config extends Iterable<Entry<String, ConfigEntry>> {
 			public Optional<String> apply(String t) {
 				var property = property(t);
 				_key.set(property.key());
-				return Optional.ofNullable(property(t).orNull());
+				return Optional.ofNullable(property.orNull());
 			}
 		};
 		return f;
