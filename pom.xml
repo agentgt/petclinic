@@ -33,7 +33,7 @@
     <flyway.version>9.3.0</flyway.version>
     <mapstruct.version>1.5.3.Final</mapstruct.version>
     <jstachio.version>0.9.3</jstachio.version>
-    <avaje.inject.version>8.12-RC3</avaje.inject.version>
+    <avaje.inject.version>8.12</avaje.inject.version>
     <postgresql.version>42.5.1</postgresql.version>
     <hikari.version>5.0.1</hikari.version>
     <flyway.version>9.11.0</flyway.version>
