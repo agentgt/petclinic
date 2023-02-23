@@ -19,7 +19,7 @@ import io.avaje.inject.InjectModule;
 @InjectModule(requires = Config.class)
 @Factory
 class _Module {
-	
+
 	@Bean
 	DbContainer dbContainer(Config config) {
 		var runner = new FlywayRunner(FlywayConfig.of(config.asFunction().compose("flyway."::concat)));
@@ -27,28 +27,27 @@ class _Module {
 		runner.run(dataSource);
 		return new DbContainer(dataSource);
 	}
-	
+
 	@Bean
 	DataSource dataSource(DbContainer container) {
 		return container.dataSource();
 	}
-	
+
 	record DbContainer(DataSource dataSource) implements AutoCloseable {
 		@Override
-		public void close()
-				throws Exception {
+		public void close() throws Exception {
 			var ds = dataSource();
 			if (ds instanceof Closeable c) {
 				c.close();
 			}
-			
+
 		}
 	}
-	
+
 	@Bean
 	DSLContext jooq(DataSource dataSource, Config config) {
 		var conf = JooqFactory.provideJOOQConfig(config, dataSource);
 		return JooqFactory.provideDSLContext(conf);
 	}
-	
+
 }
