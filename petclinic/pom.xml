@@ -36,25 +36,37 @@
     </plugins>
   </build>
   <dependencies>
-        <dependency>
-        <groupId>io.jooby</groupId>
-        <artifactId>jooby-apt</artifactId>
-      </dependency>
-      <dependency>
-        <groupId>io.jooby</groupId>
-        <artifactId>jooby</artifactId>
-      </dependency>
-      <dependency>
-        <groupId>io.jstach</groupId>
-        <artifactId>jstachio</artifactId>
-      </dependency>
-      <dependency>
-        <groupId>io.jstach</groupId>
-        <artifactId>jstachio-apt</artifactId>
-      </dependency>
-      <dependency>
-        <groupId>io.jstach</groupId>
-        <artifactId>jstachio-jmustache</artifactId>
-      </dependency>
+    
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>petclinic-repo</artifactId>
+    </dependency>
+    
+    <dependency>
+      <groupId>io.jooby</groupId>
+      <artifactId>jooby-apt</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.jooby</groupId>
+      <artifactId>jooby</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.jooby</groupId>
+      <artifactId>jooby-netty</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.jooby</groupId>
+      <artifactId>jooby-jstachio</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.jstach</groupId>
+      <artifactId>jstachio-apt</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.avaje</groupId>
+      <artifactId>avaje-inject-generator</artifactId>
+    </dependency>
+    
   </dependencies>
 </project>

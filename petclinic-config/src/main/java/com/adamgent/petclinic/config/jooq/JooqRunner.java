@@ -33,33 +33,10 @@ public class JooqRunner {
 		return xml;
 	}
 
-	// If you are wondering why this is not a record... eclipse has issues
-	// https://bugs.eclipse.org/bugs/show_bug.cgi?id=575499
-	// Edit apparently it still happens even on the below class.
 	@JStacheConfig(naming = @JStacheName(suffix = "Template"))
 	@JStache(path = "config/jooq-config.xml")
-	public static class JooqGeneratorConfig {
-
-		public final DataSourceConfig database;
-
-		public final String targetDirectory;
-
-		public final String generatorName;
-
-		public final String packageName;
-
-		public final String generatorStrategy;
-
-		public JooqGeneratorConfig(DataSourceConfig database, String targetDirectory, String generatorName,
-				String packageName, String generatorStrategy) {
-			super();
-			this.database = database;
-			this.generatorName = generatorName;
-			this.targetDirectory = targetDirectory;
-			this.packageName = packageName;
-			this.generatorStrategy = generatorStrategy;
-		}
-
+	public record JooqGeneratorConfig(DataSourceConfig database, String targetDirectory, String generatorName,
+			String packageName, String generatorStrategy) {
 	}
 
 }

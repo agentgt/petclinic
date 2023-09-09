@@ -1,15 +1,16 @@
 package com.adamgent.petclinic.config;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.adamgent.petclinic.config.Config.PropertyConvertException;
 
@@ -33,12 +34,14 @@ public class ConfigTest {
 		assertEquals(1, value);
 	}
 
-	@Test(expected = IllegalArgumentException.class)
+	@Test
 	public void testConvertFail() {
 		Map<String, String> m = Map.of("foo.bar", "asdfsf");
 		var config = Config.builder().add(m).build();
 
-		config.property("foo.bar").toInt(Integer::parseInt);
+		assertThrows(IllegalArgumentException.class, () -> {
+			config.property("foo.bar").toInt(Integer::parseInt);
+		});
 	}
 
 	@Test

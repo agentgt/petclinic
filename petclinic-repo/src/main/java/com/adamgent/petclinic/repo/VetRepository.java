@@ -2,23 +2,39 @@ package com.adamgent.petclinic.repo;
 
 import java.util.List;
 
-import org.jooq.DSLContext;
+import org.seasar.doma.Dao;
+import org.seasar.doma.Select;
+import org.seasar.doma.Sql;
 
-import com.adamgent.petclinic.db.internal.tables.VetsTable;
-import com.adamgent.petclinic.db.internal.tables.records.VetsRecord;
+import com.adamgent.petclinic.config.doma.DomaSupport;
 
-public class VetRepository {
+@Dao
+@DomaSupport
+public interface VetRepository {
 
-	private final DSLContext jooq;
-
-	public VetRepository(DSLContext jooq) {
-		super();
-		this.jooq = jooq;
-	}
-
-	public List<Vet> findAll() {
-
-		return List.of();
-	}
+	@Sql("""
+				select * from vets
+			""")
+	@Select
+	List<Vet> findAll();
 
 }
+
+// @Singleton
+// class DefaultVetRepository implements VetRepository {
+//
+// private final DSLContext jooq;
+//
+// @Inject
+// public DefaultVetRepository(DSLContext jooq) {
+// super();
+// this.jooq = jooq;
+// }
+//
+// @Override
+// public List<Vet> findAll() {
+//
+// return List.of();
+// }
+//
+// }

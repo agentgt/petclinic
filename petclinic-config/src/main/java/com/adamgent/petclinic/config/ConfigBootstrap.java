@@ -172,7 +172,7 @@ public class ConfigBootstrap {
 	}
 
 	public Map<String, String> toEnvironmentVariables() {
-		return toEnvironmentVariables(envNamePrefix, config.stream().map(e -> e.getValue().toEntry()).toList());
+		return toEnvironmentVariables(envNamePrefix, getConfig().stream().map(e -> e.getValue().toEntry()).toList());
 	}
 
 	public static Map<String, String> toEnvironmentVariables(String prefix,
