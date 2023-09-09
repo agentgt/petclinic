@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+
+<html>
+
+<body>
+
+<h2>Veterinarians</h2>
+
+<table id="vets" class="table table-striped">
+  <thead>
+  <tr>
+    <th>Name</th>
+    <th>Specialties</th>
+  </tr>
+  </thead>
+  <tbody>
+  {{#vets}}
+  <tr>
+    <td>{{firstName}} {{lastName}}</td>
+  </tr>
+  {{/vets}}
+  </tbody>
+</table>
+
+TODO PAGING
+</body>
+</html>

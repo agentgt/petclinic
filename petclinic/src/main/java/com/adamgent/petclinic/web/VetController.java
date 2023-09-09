@@ -21,7 +21,8 @@ public class VetController {
 	}
 
 	@GET("/vets")
-	public VetsHtml showVetList(@QueryParam int page) {
+	public VetsHtml showVetList(@QueryParam Integer page) {
+		int _page = page == null ? 0 : page;
 		var vets = vetRepository.findAll();
 		return new VetsHtml(vets);
 	}

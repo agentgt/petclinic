@@ -6,6 +6,7 @@ import com.adamgent.petclinic.config.jooby.AvajeInjectModule;
 import io.avaje.inject.BeanScope;
 import io.jooby.Jooby;
 import io.jooby.annotation.Path;
+import io.jooby.jstachio.JStachioModule;
 
 public class Application extends Jooby {
 
@@ -16,6 +17,7 @@ public class Application extends Jooby {
 		BeanScope beanScope = BeanScope.builder().bean(Config.class, config).build();
 		Application app = new Application();
 		app.install(AvajeInjectModule.of(beanScope));
+		app.install(new JStachioModule());
 		var controllers = beanScope.listByAnnotation(Path.class);
 		controllers.forEach(app::mvc);
 		app.onStop(beanScope);
