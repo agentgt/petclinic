@@ -6,6 +6,7 @@ module com.adamgent.petclinic.repo {
 	requires transitive io.avaje.inject;
 	
 	requires org.seasar.doma.core;
+	requires com.adamgent.petclinic.db;
 	
 	requires org.jooq;
 	

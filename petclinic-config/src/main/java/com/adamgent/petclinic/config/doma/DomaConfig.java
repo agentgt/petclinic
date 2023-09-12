@@ -2,6 +2,7 @@ package com.adamgent.petclinic.config.doma;
 
 import javax.sql.DataSource;
 
+import org.seasar.doma.jdbc.Naming;
 import org.seasar.doma.jdbc.dialect.Dialect;
 import org.seasar.doma.jdbc.dialect.PostgresDialect;
 
@@ -30,6 +31,11 @@ public class DomaConfig implements org.seasar.doma.jdbc.Config {
 	@Override
 	public Dialect getDialect() {
 		return dialect;
+	}
+
+	@Override
+	public Naming getNaming() {
+		return Naming.SNAKE_LOWER_CASE;
 	}
 
 }

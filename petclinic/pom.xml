@@ -10,9 +10,26 @@
   <properties>
     <exec.mainClass>${project.groupId}.Main</exec.mainClass>
     <exec.classpathPrefix>${settings.localRepository}</exec.classpathPrefix>
+     <!-- Web dependencies -->
+    <webjars-bootstrap.version>5.2.3</webjars-bootstrap.version>
+    <webjars-font-awesome.version>4.7.0</webjars-font-awesome.version>
   </properties>
   <build>
     <plugins>
+      <plugin>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>default-compile</id>
+            <configuration>
+              <fileExtensions>
+                <fileExtension>.class</fileExtension>
+                <fileExtension>.mustache</fileExtension>
+              </fileExtensions>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-jar-plugin</artifactId>
@@ -67,6 +84,19 @@
       <groupId>io.avaje</groupId>
       <artifactId>avaje-inject-generator</artifactId>
     </dependency>
+    
+    <!-- webjars -->
+    <dependency>
+      <groupId>org.webjars.npm</groupId>
+      <artifactId>bootstrap</artifactId>
+      <version>${webjars-bootstrap.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.webjars.npm</groupId>
+      <artifactId>font-awesome</artifactId>
+      <version>${webjars-font-awesome.version}</version>
+    </dependency>
+    <!-- end of webjars -->
     
   </dependencies>
 </project>

@@ -1,9 +1,11 @@
+{{< fragments/layout }}
+
 <!DOCTYPE html>
 
 <html>
 
 <body>
-
+{{$template}}
 <h2>Veterinarians</h2>
 
 <table id="vets" class="table table-striped">
@@ -22,6 +24,9 @@
   </tbody>
 </table>
 
-TODO PAGING
+TODO PAGINGs
+https://github.com/spring-projects/spring-petclinic/blob/main/src/main/resources/templates/vets/vetList.html
+{{/template}}
 </body>
 </html>
+{{/ fragments/layout }}

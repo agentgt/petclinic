@@ -34,7 +34,6 @@
       <directory>{{targetDirectory}}</directory>
     </target>
     <generate>
-      <pojos>true</pojos>
       <jpaAnnotations>false</jpaAnnotations>
       <validationAnnotations>true</validationAnnotations>
       <constructorPropertiesAnnotationOnPojos>true</constructorPropertiesAnnotationOnPojos>

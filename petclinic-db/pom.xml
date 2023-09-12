@@ -64,7 +64,7 @@
     <dependency>
       <groupId>com.zaxxer</groupId>
       <artifactId>HikariCP</artifactId>
-      <scope>runtime</scope>
+      <scope>compile</scope>
     </dependency>
     
   </dependencies>
