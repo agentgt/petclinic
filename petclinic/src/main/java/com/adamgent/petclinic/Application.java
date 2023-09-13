@@ -25,22 +25,13 @@ public class Application extends Jooby {
 
 		WebJar.builder() //
 				.add("org.webjars.npm", "font-awesome") //
-				.add("org.webjars.npm", "bootstrap").install(app, loader);
+				.add("org.webjars.npm", "bootstrap") //
+				.install(app, loader);
 		app.assets("/static/*", AssetSource.create(loader, "/static"));
 		var controllers = beanScope.listByAnnotation(Path.class);
 		controllers.forEach(app::mvc);
 		app.onStop(beanScope);
 		return app;
-	}
-
-	static void asset(String pattern, AssetSource source, AssetSource... sources) {
-		AssetSource[] array = new AssetSource[1 + sources.length];
-		array[0] = source;
-		System.arraycopy(sources, 0, array, 1, sources.length);
-		System.out.println(array);
-	}
-
-	static void asset(String pattern, AssetSource[] sources) {
 	}
 
 }

@@ -336,7 +336,7 @@ public class ConfigBootstrap {
 				continue;
 			}
 			var c = parseBuiltin(p);
-			resolved = resolved.withFallback(c);
+			resolved = c.withFallback(resolved);
 		}
 
 		for (var p : profiles) {
@@ -344,7 +344,7 @@ public class ConfigBootstrap {
 				continue;
 			}
 			var c = parseUserFile(p);
-			resolved = resolved.withFallback(c);
+			resolved = c.withFallback(resolved);
 		}
 		// TODO do we need to reresolve here?
 		return resolved;

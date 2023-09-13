@@ -10,6 +10,8 @@
   <properties>
     <exec.mainClass>${project.groupId}.Main</exec.mainClass>
     <exec.classpathPrefix>${settings.localRepository}</exec.classpathPrefix>
+    <!-- for jooby-run -->
+    <application.class>${exec.mainClass}</application.class>
      <!-- Web dependencies -->
     <webjars-bootstrap.version>5.2.3</webjars-bootstrap.version>
     <webjars-font-awesome.version>4.7.0</webjars-font-awesome.version>
@@ -49,6 +51,11 @@
               </configuration>
             </execution>
           </executions>
+        </plugin>
+        <plugin>
+          <groupId>io.jooby</groupId>
+          <artifactId>jooby-maven-plugin</artifactId>
+          <version>${jooby.version}</version>
         </plugin>
     </plugins>
   </build>

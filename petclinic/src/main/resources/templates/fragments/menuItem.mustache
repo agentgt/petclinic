@@ -1,0 +1,9 @@
+
+{{! th:fragment="menuItem (link,active,title,glyph,text) }}
+<li  class="nav-item">
+  {{! nav-link active}}
+  <a class="nav-link {{$active}}{{/active}}" href="{{$link}}{{/link}}" title="{{$title}}{{/title}}">
+    <span class="fa fa-{{$glyph}}fa-home{{/glyph}}"></span>
+    <span>{{$text}}{{/text}}</span>
+  </a>
+</li>

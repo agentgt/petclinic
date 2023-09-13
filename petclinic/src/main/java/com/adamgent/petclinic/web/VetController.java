@@ -24,7 +24,10 @@ public class VetController {
 	public VetsHtml showVetList(@QueryParam Integer page) {
 		int _page = page == null ? 0 : page;
 		var vets = vetRepository.findAll();
-		return new VetsHtml(vets);
+		var html = new VetsHtml(vets);
+
+		// var r = VetsHtmlRenderer.of().execute(html).contains("CHANGED");
+		return html;
 	}
 
 }
